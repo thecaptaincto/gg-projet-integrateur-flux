@@ -1,7 +1,6 @@
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {utiliserAuth} from '../contextes/ContexteAuth';
 import {EcranAccueil} from '../ecrans/principal/EcranAccueil';
 import {EcranInscription} from '../ecrans/authentification/EcranInscription';
@@ -12,6 +11,7 @@ import {EcranNotifications} from '../ecrans/principal/EcranNotifications';
 import {EcranProfil} from '../ecrans/principal/EcranProfil';
 import {theme} from '../styles/theme';
 import {Text, View, StyleSheet} from 'react-native';
+import createMaterialTopTabNavigator from '@react-navigation/material-top-tabs/lib/typescript/src/navigators/createMaterialTopTabNavigator';
 
 // Définir les types de navigation
 type TypesPilePrincipale = {
@@ -29,7 +29,8 @@ type TypesOngletsPrincipaux = {
 };
 
 const Pile = createNativeStackNavigator<TypesPilePrincipale>();
-const Onglets = createBottomTabNavigator<TypesOngletsPrincipaux>();
+
+const Onglets = createMaterialTopTabNavigator<TypesOngletsPrincipaux>();
 
 // Icône personnalisée pour les onglets
 const IconeOnglet = ({etiquette, actif}: {etiquette: string; actif: boolean}) => (
@@ -55,11 +56,13 @@ const OngletsPrincipaux = () => {
     <Onglets.Navigator
       id="OngletsPrincipaux"
       screenOptions={{
-        headerShown: false,
+        swipeEnabled: true, // ← ACTIVE LE SWIPE
+        // tabBarPosition: 'bottom', // ← PLACE LA BARRE D'ONGLETS EN BAS (note: MODIFIER PLUS TARD POUR AVOIR UNE VRAIE BARRE DE NAVIGATION EN BAS)
         tabBarStyle: styles.barreOnglets,
         tabBarActiveTintColor: theme.couleurs.primaire,
         tabBarInactiveTintColor: 'rgba(253, 226, 255, 0.5)',
         tabBarShowLabel: false,
+        tabBarIndicatorStyle: { display: 'none' },
       }}>
       <Onglets.Screen
         name="OngletPrincipal"

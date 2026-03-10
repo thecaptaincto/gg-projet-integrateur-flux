@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
 
 interface ContexteAuthType {
   utilisateur: FirebaseAuthTypes.User | null;
@@ -39,6 +38,37 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
     return desabonner;
   }, []);
 
+  const obtenirMessageErreur = (codeErreur: string, contexte: 'inscription' | 'connexion' | 'motdepasse' = 'connexion'): string => {
+    // Messages d'erreur personnalisés en français
+    const messagesInscription: Record<string, string> = {
+      'auth/email-already-in-use': 'Cette adresse courriel est déjà utilisée. Essayez de vous connecter.',
+      'auth/invalid-email': 'Adresse courriel invalide. Vérifiez le format.',
+      'auth/weak-password': 'Le mot de passe est trop faible. Utilisez au moins 6 caractères.',
+      'auth/network-request-failed': 'Erreur réseau. Vérifiez votre connexion Internet.',
+    };
+
+    const messagesConnexion: Record<string, string> = {
+      'auth/user-not-found': 'Aucun compte trouvé avec cette adresse. Créez un compte d\'abord.',
+      'auth/wrong-password': 'Mot de passe incorrect. Vérifiez votre saisie.',
+      'auth/invalid-email': 'Adresse courriel invalide. Vérifiez le format.',
+      'auth/user-disabled': 'Ce compte a été désactivé. Contactez le support.',
+      'auth/too-many-requests': 'Trop de tentatives. Réessayez plus tard.',
+      'auth/network-request-failed': 'Erreur réseau. Vérifiez votre connexion Internet.',
+    };
+
+    const messagesMotDePasse: Record<string, string> = {
+      'auth/user-not-found': 'Aucun compte trouvé avec cette adresse courriel.',
+      'auth/invalid-email': 'Adresse courriel invalide.',
+      'auth/network-request-failed': 'Erreur réseau. Vérifiez votre connexion.',
+    };
+
+    let messages = messagesConnexion;
+    if (contexte === 'inscription') messages = messagesInscription;
+    if (contexte === 'motdepasse') messages = messagesMotDePasse;
+
+    return messages[codeErreur] || 'Une erreur inattendue s\'est produite. Réessayez.';
+  };
+
   const inscrire = async (email: string, motDePasse: string, nom: string) => {
     try {
       setChargement(true);
@@ -65,25 +95,20 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
       // Envoyer email de vérification
       await credential.user.sendEmailVerification();
 
-      Alert.alert(
-        'Inscription réussie!',
-        'Un email de vérification a été envoyé à ' + email
-      );
+      throw {
+        code: 'success',
+        message: `Inscription réussie !\n\nUn email de vérification a été envoyé à ${email}. Veuillez vérifier votre boîte de réception.`,
+      };
     } catch (erreur: any) {
-      let message = 'Erreur lors de l\'inscription';
-      
-      if (erreur.code === 'auth/email-already-in-use') {
-        message = 'Cette adresse courriel est déjà utilisée';
-      } else if (erreur.code === 'auth/invalid-email') {
-        message = 'Adresse courriel invalide';
-      } else if (erreur.code === 'auth/weak-password') {
-        message = 'Le mot de passe est trop faible';
-      } else if (erreur.message) {
-        message = erreur.message;
+      if (erreur.code === 'success') {
+        throw erreur; // Re-throw success message
       }
       
-      Alert.alert('Erreur', message);
-      throw erreur;
+      const message = erreur.code 
+        ? obtenirMessageErreur(erreur.code, 'inscription')
+        : erreur.message || 'Erreur lors de l\'inscription';
+      
+      throw { code: 'error', message };
     } finally {
       setChargement(false);
     }
@@ -99,22 +124,11 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
 
       await auth().signInWithEmailAndPassword(email, motDePasse);
     } catch (erreur: any) {
-      let message = 'Erreur lors de la connexion';
+      const message = erreur.code 
+        ? obtenirMessageErreur(erreur.code, 'connexion')
+        : erreur.message || 'Erreur lors de la connexion';
       
-      if (erreur.code === 'auth/user-not-found') {
-        message = 'Aucun compte trouvé avec cette adresse';
-      } else if (erreur.code === 'auth/wrong-password') {
-        message = 'Mot de passe incorrect';
-      } else if (erreur.code === 'auth/invalid-email') {
-        message = 'Adresse courriel invalide';
-      } else if (erreur.code === 'auth/user-disabled') {
-        message = 'Ce compte a été désactivé';
-      } else if (erreur.message) {
-        message = erreur.message;
-      }
-      
-      Alert.alert('Erreur', message);
-      throw erreur;
+      throw { code: 'error', message };
     } finally {
       setChargement(false);
     }
@@ -123,15 +137,9 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
   const seConnecterAvecGoogle = async () => {
     try {
       setChargement(true);
-      // Pour Google Sign-In, vous devez installer et configurer @react-native-google-signin/google-signin
-      // Cela nécessite des étapes supplémentaires dans Firebase Console
-      Alert.alert(
-        'Fonctionnalité bientôt disponible',
-        'La connexion avec Google sera disponible dans une prochaine mise à jour'
-      );
+      throw new Error('La connexion avec Google sera disponible dans une prochaine mise à jour');
     } catch (erreur: any) {
-      Alert.alert('Erreur', erreur.message || 'Erreur lors de la connexion avec Google');
-      throw erreur;
+      throw { code: 'error', message: erreur.message };
     } finally {
       setChargement(false);
     }
@@ -145,30 +153,31 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
 
       await auth().sendPasswordResetEmail(email);
       
-      Alert.alert(
-        'Email envoyé!',
-        'Un lien de réinitialisation a été envoyé à ' + email
-      );
+      throw {
+        code: 'success',
+        message: `Email envoyé !\n\nUn lien de réinitialisation a été envoyé à ${email}. Vérifiez votre boîte de réception.`,
+      };
     } catch (erreur: any) {
-      let message = 'Erreur lors de l\'envoi de l\'email';
-      
-      if (erreur.code === 'auth/user-not-found') {
-        message = 'Aucun compte trouvé avec cette adresse';
-      } else if (erreur.code === 'auth/invalid-email') {
-        message = 'Adresse courriel invalide';
+      if (erreur.code === 'success') {
+        throw erreur;
       }
       
-      Alert.alert('Erreur', message);
-      throw erreur;
+      const message = erreur.code 
+        ? obtenirMessageErreur(erreur.code, 'motdepasse')
+        : erreur.message || 'Erreur lors de l\'envoi de l\'email';
+      
+      throw { code: 'error', message };
     }
   };
 
   const seDeconnecter = async () => {
     try {
       await auth().signOut();
+      // Réinitialiser le premier lancement lors de la déconnexion
+      await AsyncStorage.removeItem('premierLancement');
+      setPremierLancement(true);
     } catch (erreur: any) {
-      Alert.alert('Erreur', 'Erreur lors de la déconnexion');
-      throw erreur;
+      throw { code: 'error', message: 'Erreur lors de la déconnexion' };
     }
   };
 

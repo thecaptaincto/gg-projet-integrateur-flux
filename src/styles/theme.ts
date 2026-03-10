@@ -12,6 +12,8 @@ export const theme = {
   },
   polices: {
     reguliere: 'LilitaOne-Regular',
+    moyenne: 'LilitaOne-Regular', 
+    grasse: 'LilitaOne-Regular',
   },
   espacement: {
     xs: 8,
