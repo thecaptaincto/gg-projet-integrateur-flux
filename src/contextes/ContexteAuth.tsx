@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { estMotDePasseValideInscription } from '../utils/validationFormulaire';
 
 interface ContexteAuthType {
   utilisateur: FirebaseAuthTypes.User | null;
@@ -43,7 +44,7 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
     const messagesInscription: Record<string, string> = {
       'auth/email-already-in-use': 'Cette adresse courriel est déjà utilisée. Essayez de vous connecter.',
       'auth/invalid-email': 'Adresse courriel invalide. Vérifiez le format.',
-      'auth/weak-password': 'Le mot de passe est trop faible. Utilisez au moins 6 caractères.',
+      'auth/weak-password': 'Le mot de passe est trop faible. Utilisez au moins 8 caractères, une majuscule et un chiffre.',
       'auth/network-request-failed': 'Erreur réseau. Vérifiez votre connexion Internet.',
     };
 
@@ -77,8 +78,8 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
       if (!email.includes('@')) {
         throw new Error('Adresse courriel invalide');
       }
-      if (motDePasse.length < 6) {
-        throw new Error('Le mot de passe doit contenir au moins 6 caractères');
+      if (!estMotDePasseValideInscription(motDePasse)) {
+        throw new Error('Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre');
       }
       if (nom.trim().length < 2) {
         throw new Error('Le nom doit contenir au moins 2 caractères');

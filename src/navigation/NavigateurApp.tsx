@@ -1,17 +1,19 @@
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import {createMaterialTopTabNavigator} from '@react-navigation/material-top-tabs';
 import {utiliserAuth} from '../contextes/ContexteAuth';
 import {EcranAccueil} from '../ecrans/principal/EcranAccueil';
 import {EcranInscription} from '../ecrans/authentification/EcranInscription';
 import {EcranConnexion} from '../ecrans/authentification/EcranConnexion';
 import {EcranPrincipal} from '../ecrans/principal/EcranPrincipal';
 import {EcranExplorer} from '../ecrans/principal/EcranExplorer';
+import {EcranEnregistrer} from '../ecrans/principal/EcranEnregistrer';
 import {EcranNotifications} from '../ecrans/principal/EcranNotifications';
 import {EcranProfil} from '../ecrans/principal/EcranProfil';
 import {theme} from '../styles/theme';
-import {Text, View, StyleSheet} from 'react-native';
-import createMaterialTopTabNavigator from '@react-navigation/material-top-tabs/lib/typescript/src/navigators/createMaterialTopTabNavigator';
+import {Text, View, StyleSheet, TouchableOpacity} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 // Définir les types de navigation
 type TypesPilePrincipale = {
@@ -24,6 +26,7 @@ type TypesPilePrincipale = {
 type TypesOngletsPrincipaux = {
   OngletPrincipal: undefined;
   OngletExplorer: undefined;
+  OngletEnregistrer: undefined;
   OngletNotifications: undefined;
   OngletProfil: undefined;
 };
@@ -51,54 +54,66 @@ const IconeOnglet = ({etiquette, actif}: {etiquette: string; actif: boolean}) =>
   </View>
 );
 
+const BarreOngletsBas = ({state, navigation}: any) => {
+  const insets = useSafeAreaInsets();
+  const paddingBas = Math.max(insets.bottom, 24);
+
+  const etiquettes: Record<string, string> = {
+    OngletPrincipal: 'Accueil',
+    OngletExplorer: 'Explorer',
+    OngletEnregistrer: 'Enregistrer',
+    OngletNotifications: 'Notifications',
+    OngletProfil: 'Profil',
+  };
+
+  return (
+    <View style={[styles.barreOnglets, {paddingBottom: paddingBas}]}>
+      {state.routes.map((route: any, index: number) => {
+        const actif = state.index === index;
+        const etiquette = etiquettes[route.name] ?? route.name;
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            accessibilityRole="button"
+            onPress={() => navigation.navigate(route.name)}
+            style={styles.boutonOnglet}>
+            <IconeOnglet etiquette={etiquette} actif={actif} />
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+};
+
 const OngletsPrincipaux = () => {
   return (
     <Onglets.Navigator
       id="OngletsPrincipaux"
+      tabBarPosition="bottom"
+      tabBar={props => <BarreOngletsBas {...props} />}
       screenOptions={{
-        swipeEnabled: true, // ← ACTIVE LE SWIPE
-        // tabBarPosition: 'bottom', // ← PLACE LA BARRE D'ONGLETS EN BAS (note: MODIFIER PLUS TARD POUR AVOIR UNE VRAIE BARRE DE NAVIGATION EN BAS)
-        tabBarStyle: styles.barreOnglets,
-        tabBarActiveTintColor: theme.couleurs.primaire,
-        tabBarInactiveTintColor: 'rgba(253, 226, 255, 0.5)',
-        tabBarShowLabel: false,
-        tabBarIndicatorStyle: { display: 'none' },
+        swipeEnabled: true,
       }}>
       <Onglets.Screen
         name="OngletPrincipal"
         component={EcranPrincipal}
-        options={{
-          tabBarIcon: ({focused}) => (
-            <IconeOnglet etiquette="Accueil" actif={focused} />
-          ),
-        }}
       />
       <Onglets.Screen
         name="OngletExplorer"
         component={EcranExplorer}
-        options={{
-          tabBarIcon: ({focused}) => (
-            <IconeOnglet etiquette="Explorer" actif={focused} />
-          ),
-        }}
+      />
+      <Onglets.Screen
+        name="OngletEnregistrer"
+        component={EcranEnregistrer}
       />
       <Onglets.Screen
         name="OngletNotifications"
         component={EcranNotifications}
-        options={{
-          tabBarIcon: ({focused}) => (
-            <IconeOnglet etiquette="Notifications" actif={focused} />
-          ),
-        }}
       />
       <Onglets.Screen
         name="OngletProfil"
         component={EcranProfil}
-        options={{
-          tabBarIcon: ({focused}) => (
-            <IconeOnglet etiquette="Profil" actif={focused} />
-          ),
-        }}
       />
     </Onglets.Navigator>
   );
@@ -111,19 +126,21 @@ export const NavigateurApp = () => {
     return null;
   }
 
+  const routeInitiale =
+    utilisateur ? 'Principal' : premierLancement ? 'Accueil' : 'Connexion';
+
   return (
     <NavigationContainer>
       <Pile.Navigator
         id="PilePrincipale"
+        initialRouteName={routeInitiale}
         screenOptions={{
           headerShown: false,
           contentStyle: {backgroundColor: 'transparent'},
         }}>
         {!utilisateur ? (
           <>
-            {premierLancement && (
-              <Pile.Screen name="Accueil" component={EcranAccueil} />
-            )}
+            <Pile.Screen name="Accueil" component={EcranAccueil} />
             <Pile.Screen name="Inscription" component={EcranInscription} />
             <Pile.Screen name="Connexion" component={EcranConnexion} />
           </>
@@ -140,9 +157,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a0024',
     borderTopWidth: 2,
     borderTopColor: 'rgba(253, 226, 255, 0.2)',
-    height: 70,
-    paddingBottom: 8,
+    minHeight: 64,
     paddingTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+  },
+  boutonOnglet: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
   },
   conteneurIconeOnglet: {
     alignItems: 'center',

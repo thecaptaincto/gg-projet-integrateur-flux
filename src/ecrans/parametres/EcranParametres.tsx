@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet, ScrollView} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import { ArrierePlanGradient } from '../../composants/ArrierePlanGradient';
 import { theme } from '../../styles/theme';
 
@@ -8,6 +9,23 @@ interface PropsEcranParametres {
 }
 
 export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) => {
+  const gererRetour = () => {
+    if (typeof navigation?.canGoBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    if (typeof navigation?.popToTop === 'function') {
+      navigation.popToTop();
+      return;
+    }
+
+    const parent = typeof navigation?.getParent === 'function' ? navigation.getParent() : null;
+    if (parent && typeof parent?.canGoBack === 'function' && parent.canGoBack()) {
+      parent.goBack();
+    }
+  };
+
   const parametres = [
     {
       titre: 'Mon compte',
@@ -35,7 +53,7 @@ export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) 
     <ArrierePlanGradient>
       <SafeAreaView style={styles.conteneur}>
         <View style={styles.entete}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={gererRetour}>
             <Text style={styles.boutonRetour}>← Retour</Text>
           </TouchableOpacity>
           <Text style={styles.titre}>Paramètres</Text>

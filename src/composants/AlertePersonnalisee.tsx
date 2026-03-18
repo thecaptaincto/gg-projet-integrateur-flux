@@ -7,26 +7,31 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
-import {ArrierePlanGradient} from './ArrierePlanGradient';
+import LinearGradient from 'react-native-linear-gradient';
+import {theme} from '../styles/theme';
+
+export type TypeAlertePersonnalisee = 'confirmation' | 'avertissement' | 'info';
 
 interface PropsAlertePersonnalisee {
   visible: boolean;
+  type: TypeAlertePersonnalisee;
   titre: string;
   message: string;
-  boutons?: {
-    texte: string;
-    onPress: () => void;
-    style?: 'primaire' | 'secondaire' | 'danger';
-  }[];
-  onFermer?: () => void;
+  onConfirmer?: () => void;
+  onAnnuler?: () => void;
+  texteConfirmer?: string;
+  texteAnnuler?: string;
 }
 
 export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
   visible,
+  type,
   titre,
   message,
-  boutons = [{texte: 'OK', onPress: () => {}}],
-  onFermer,
+  onConfirmer,
+  onAnnuler,
+  texteConfirmer,
+  texteAnnuler,
 }) => {
   const [fadeAnim] = React.useState(new Animated.Value(0));
 
@@ -44,47 +49,121 @@ export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
         useNativeDriver: true,
       }).start();
     }
-  }, [visible]);
+  }, [fadeAnim, visible]);
 
-  const obtenirStyleBouton = (style?: string) => {
-    switch (style) {
-      case 'primaire':
-        return styles.boutonPrimaire;
-      case 'danger':
-        return styles.boutonDanger;
-      case 'secondaire':
+  const config = React.useMemo(() => {
+    switch (type) {
+      case 'confirmation':
+        return {
+          couleursGradient: [
+            theme.couleurs.alerteConfirmationDebut,
+            theme.couleurs.alerteConfirmationFin,
+          ],
+          couleurBordure: theme.couleurs.alerteConfirmationBordure,
+          icone: '✓',
+          couleurAction: theme.couleurs.violetAccent,
+        };
+      case 'avertissement':
+        return {
+          couleursGradient: [
+            theme.couleurs.alerteAvertissementDebut,
+            theme.couleurs.alerteAvertissementFin,
+          ],
+          couleurBordure: theme.couleurs.alerteAvertissementBordure,
+          icone: '⚠',
+          couleurAction: theme.couleurs.alerteAvertissementBordure,
+        };
+      case 'info':
       default:
-        return styles.boutonSecondaire;
+        return {
+          couleursGradient: [
+            theme.couleurs.alerteInfoDebut,
+            theme.couleurs.alerteInfoFin,
+          ],
+          couleurBordure: theme.couleurs.alerteInfoBordure,
+          icone: 'ℹ',
+          couleurAction: theme.couleurs.violetAccent,
+        };
     }
-  };
+  }, [type]);
+
+  const gererFermer = React.useCallback(() => {
+    if (type === 'confirmation') {
+      onAnnuler?.();
+      return;
+    }
+
+    // Pour info/avertissement, un tap en dehors revient à "OK" si fourni.
+    onConfirmer?.();
+  }, [onAnnuler, onConfirmer, type]);
+
+  const libelleConfirmer =
+    texteConfirmer ?? (type === 'confirmation' ? 'Confirmer' : 'OK');
+  const libelleAnnuler = texteAnnuler ?? 'Annuler';
 
   return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={onFermer}>
+    <Modal
+      transparent
+      visible={visible}
+      animationType="fade"
+      onRequestClose={gererFermer}>
       <Animated.View style={[styles.overlay, {opacity: fadeAnim}]}>
         <TouchableOpacity
           style={styles.overlayTouchable}
           activeOpacity={1}
-          onPress={onFermer}>
+          onPress={gererFermer}>
           <View style={styles.conteneurAlerte}>
-            <View style={styles.carteBordure}>
-              <View style={styles.carteInterieur}>
-                <Text style={styles.titre}>{titre}</Text>
+            <View
+              style={[styles.carteBordure, {borderColor: config.couleurBordure}]}>
+              <LinearGradient
+                colors={config.couleursGradient}
+                style={styles.carteInterieur}>
+                <View style={styles.entete}>
+                  <Text style={[styles.icone, {color: config.couleurAction}]}>
+                    {config.icone}
+                  </Text>
+                  <Text style={styles.titre}>{titre}</Text>
+                </View>
+
                 <Text style={styles.message}>{message}</Text>
 
                 <View style={styles.conteneurBoutons}>
-                  {boutons.map((bouton, index) => (
+                  {type === 'confirmation' ? (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.bouton, styles.boutonSecondaire]}
+                        onPress={onAnnuler}>
+                        <Text style={styles.texteBoutonSecondaire}>
+                          {libelleAnnuler}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.bouton,
+                          styles.boutonPrimaire,
+                          {backgroundColor: config.couleurAction},
+                        ]}
+                        onPress={onConfirmer}>
+                        <Text style={styles.texteBoutonPrimaire}>
+                          {libelleConfirmer}
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
                     <TouchableOpacity
-                      key={index}
-                      style={[styles.bouton, obtenirStyleBouton(bouton.style)]}
-                      onPress={() => {
-                        bouton.onPress();
-                        onFermer?.();
-                      }}>
-                      <Text style={styles.texteBouton}>{bouton.texte}</Text>
+                      style={[
+                        styles.bouton,
+                        styles.boutonPrimaire,
+                        {backgroundColor: config.couleurAction},
+                      ]}
+                      onPress={onConfirmer}>
+                      <Text style={styles.texteBoutonPrimaire}>
+                        {libelleConfirmer}
+                      </Text>
                     </TouchableOpacity>
-                  ))}
+                  )}
                 </View>
-              </View>
+              </LinearGradient>
             </View>
           </View>
         </TouchableOpacity>
@@ -96,7 +175,7 @@ export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: theme.couleurs.overlayModal,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -112,32 +191,38 @@ const styles = StyleSheet.create({
   },
   carteBordure: {
     borderRadius: 20,
-    padding: 2,
-    backgroundColor: 'rgba(253, 226, 255, 0.3)',
+    borderWidth: 2,
   },
   carteInterieur: {
-    backgroundColor: '#2a0038',
     borderRadius: 18,
     padding: 24,
   },
-  titre: {
-    fontFamily: 'LilitaOne-Regular',
-    fontSize: 24,
-    color: '#FDE2FF',
+  entete: {
+    alignItems: 'center',
     marginBottom: 12,
+  },
+  icone: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 28,
+    marginBottom: 6,
+  },
+  titre: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 24,
+    color: theme.couleurs.texteClair,
     textAlign: 'center',
   },
   message: {
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.reguliere,
     fontSize: 16,
-    color: 'rgba(253, 226, 255, 0.8)',
-    marginBottom: 24,
+    color: theme.couleurs.texteSecondaire,
+    marginBottom: theme.espacement.lg,
     textAlign: 'center',
     lineHeight: 24,
   },
   conteneurBoutons: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     gap: 12,
   },
   bouton: {
@@ -148,19 +233,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   boutonPrimaire: {
-    backgroundColor: '#a855f7',
+    backgroundColor: theme.couleurs.violetAccent,
   },
   boutonSecondaire: {
     backgroundColor: 'rgba(253, 226, 255, 0.2)',
     borderWidth: 1,
     borderColor: 'rgba(253, 226, 255, 0.5)',
   },
-  boutonDanger: {
-    backgroundColor: '#ef4444',
-  },
-  texteBouton: {
-    fontFamily: 'LilitaOne-Regular',
+  texteBoutonPrimaire: {
+    fontFamily: theme.polices.reguliere,
     fontSize: 16,
-    color: '#FDE2FF',
+    color: theme.couleurs.texte,
+  },
+  texteBoutonSecondaire: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 16,
+    color: theme.couleurs.texteClair,
   },
 });

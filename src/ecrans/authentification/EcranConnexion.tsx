@@ -1,49 +1,151 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import React, {useMemo, useState} from 'react';
+import {StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import { utiliserAuth } from '../../contextes/ContexteAuth';
 import { ArrierePlanGradient } from '../../composants/ArrierePlanGradient';
 import { AlertePersonnalisee } from '../../composants/AlertePersonnalisee';
+import type {NavigationProp, ParamListBase} from '@react-navigation/native';
+import {theme} from '../../styles/theme';
+import {
+  estCourrielValide,
+  estMotDePasseValideConnexion,
+} from '../../utils/validationFormulaire';
 
-const EcranConnexion = ({ navigation }: any) => {
+interface PropsEcranConnexion {
+  navigation: NavigationProp<ParamListBase>;
+}
+
+interface ChampsTouchesConnexion {
+  email: boolean;
+  motDePasse: boolean;
+}
+
+type ErreursConnexion = Partial<Record<keyof ChampsTouchesConnexion, string>>;
+
+interface EtatAlerte {
+  visible: boolean;
+  type: 'avertissement' | 'info' | 'confirmation';
+  titre: string;
+  message: string;
+}
+
+const estObjet = (valeur: unknown): valeur is Record<string, unknown> =>
+  typeof valeur === 'object' && valeur !== null;
+
+const obtenirChaine = (valeur: unknown): string | undefined =>
+  typeof valeur === 'string' ? valeur : undefined;
+
+const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
   const { seConnecter, reinitialiserMotDePasse, chargement } = utiliserAuth();
   
-  // État pour l'alerte personnalisée
-  const [alerte, setAlerte] = useState({
-    visible: false,
-    titre: '',
-    message: '',
-    type: 'error' as 'error' | 'success',
+  const [soumissionTentee, setSoumissionTentee] = useState(false);
+  const [champsTouches, setChampsTouches] = useState<ChampsTouchesConnexion>({
+    email: false,
+    motDePasse: false,
   });
 
-  const afficherAlerte = (titre: string, message: string, type: 'error' | 'success' = 'error') => {
-    setAlerte({ visible: true, titre, message, type });
+  // État pour l'alerte personnalisée (réponses serveur uniquement)
+  const [alerte, setAlerte] = useState<EtatAlerte>({
+    visible: false,
+    type: 'info',
+    titre: '',
+    message: '',
+  });
+
+  const erreurs: ErreursConnexion = useMemo(() => {
+    const prochainesErreurs: ErreursConnexion = {};
+    const courrielNettoye = email.trim();
+
+    if (!courrielNettoye) {
+      prochainesErreurs.email = 'Veuillez entrer votre adresse courriel.';
+    } else if (!estCourrielValide(courrielNettoye)) {
+      prochainesErreurs.email = 'Adresse courriel invalide.';
+    }
+
+    if (!motDePasse) {
+      prochainesErreurs.motDePasse = 'Veuillez entrer votre mot de passe.';
+    } else if (!estMotDePasseValideConnexion(motDePasse)) {
+      prochainesErreurs.motDePasse = 'Le mot de passe doit avoir au moins 8 caractères.';
+    }
+
+    return prochainesErreurs;
+  }, [email, motDePasse]);
+
+  const formulaireValide = Object.keys(erreurs).length === 0;
+  const afficherErreurEmail =
+    (soumissionTentee || champsTouches.email) ? erreurs.email : undefined;
+  const afficherErreurMotDePasse =
+    (soumissionTentee || champsTouches.motDePasse)
+      ? erreurs.motDePasse
+      : undefined;
+
+  const afficherAlerte = (
+    type: EtatAlerte['type'],
+    titreAlerte: string,
+    messageAlerte: string,
+  ) => {
+    setAlerte({visible: true, type, titre: titreAlerte, message: messageAlerte});
+  };
+
+  const fermerAlerte = () => {
+    setAlerte(etat => ({...etat, visible: false}));
   };
 
   const gererConnexion = async () => {
+    setSoumissionTentee(true);
+    if (!formulaireValide) {
+      return;
+    }
+
     try {
       await seConnecter(email, motDePasse);
-    } catch (erreur: any) {
-      afficherAlerte('Erreur de connexion', erreur.message || 'Une erreur est survenue');
+    } catch (erreur: unknown) {
+      const message =
+        estObjet(erreur) ? obtenirChaine(erreur.message) : undefined;
+      afficherAlerte(
+        'avertissement',
+        'Erreur de connexion',
+        message ?? 'Une erreur est survenue.',
+      );
     }
   };
 
   const gererMotDePasseOublie = async () => {
-    if (!email) {
-      afficherAlerte('Attention', 'Veuillez entrer votre adresse courriel d\'abord');
+    setChampsTouches(etat => ({...etat, email: true}));
+    setSoumissionTentee(true);
+
+    if (!email.trim() || !estCourrielValide(email)) {
       return;
     }
 
     try {
       await reinitialiserMotDePasse(email);
-    } catch (erreur: any) {
-      if (erreur.code === 'success') {
-        afficherAlerte('Succès', erreur.message, 'success');
-      } else {
-        afficherAlerte('Erreur', erreur.message);
+      afficherAlerte(
+        'info',
+        'Courriel envoyé',
+        'Si un compte existe pour ce courriel, vous recevrez un lien de réinitialisation.',
+      );
+    } catch (erreur: unknown) {
+      const code = estObjet(erreur) ? obtenirChaine(erreur.code) : undefined;
+      const message =
+        estObjet(erreur) ? obtenirChaine(erreur.message) : undefined;
+
+      if (code === 'success') {
+        afficherAlerte('info', 'Succès', message ?? 'Courriel envoyé.');
+        return;
       }
+
+      afficherAlerte('avertissement', 'Erreur', message ?? 'Une erreur est survenue.');
     }
+  };
+
+  const gererRetour = () => {
+    navigation.reset({
+      index: 0,
+      routes: [{name: 'Accueil'}],
+    });
   };
 
   return (
@@ -51,7 +153,7 @@ const EcranConnexion = ({ navigation }: any) => {
       <SafeAreaView style={styles.conteneur}>
         <TouchableOpacity 
           style={styles.boutonRetour}
-          onPress={() => navigation.goBack()}
+          onPress={gererRetour}
         >
           <Text style={styles.texteRetour}>← Retour</Text>
         </TouchableOpacity>
@@ -59,33 +161,52 @@ const EcranConnexion = ({ navigation }: any) => {
         <View style={styles.contenuCentre}>
           <Text style={styles.titre}>Connexion</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Adresse courriel"
-            placeholderTextColor="rgba(253, 226, 255, 0.5)"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+          <View style={styles.groupeChamp}>
+            <TextInput
+              style={styles.input}
+              placeholder="Adresse courriel"
+              placeholderTextColor={theme.couleurs.placeholder}
+              value={email}
+              onChangeText={setEmail}
+              onBlur={() =>
+                setChampsTouches(etat => ({...etat, email: true}))
+              }
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {afficherErreurEmail ? (
+              <Text style={styles.texteErreur}>{afficherErreurEmail}</Text>
+            ) : null}
+          </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Mot de passe"
-            placeholderTextColor="rgba(253, 226, 255, 0.5)"
-            value={motDePasse}
-            onChangeText={setMotDePasse}
-            secureTextEntry
-            autoCapitalize="none"
-          />
+          <View style={styles.groupeChamp}>
+            <TextInput
+              style={styles.input}
+              placeholder="Mot de passe"
+              placeholderTextColor={theme.couleurs.placeholder}
+              value={motDePasse}
+              onChangeText={setMotDePasse}
+              onBlur={() =>
+                setChampsTouches(etat => ({...etat, motDePasse: true}))
+              }
+              secureTextEntry
+              autoCapitalize="none"
+            />
+            {afficherErreurMotDePasse ? (
+              <Text style={styles.texteErreur}>{afficherErreurMotDePasse}</Text>
+            ) : null}
+          </View>
 
           <TouchableOpacity onPress={gererMotDePasseOublie}>
             <Text style={styles.lienOublie}>Mot de passe oublié?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.bouton, chargement && styles.boutonDesactive]}
+            style={[
+              styles.bouton,
+              (!formulaireValide || chargement) && styles.boutonDesactive,
+            ]}
             onPress={gererConnexion}
             disabled={chargement}
           >
@@ -102,14 +223,12 @@ const EcranConnexion = ({ navigation }: any) => {
         {/* Alerte personnalisée */}
         <AlertePersonnalisee
           visible={alerte.visible}
+          type={alerte.type}
           titre={alerte.titre}
           message={alerte.message}
-          boutons={[{
-            texte: 'OK',
-            onPress: () => {},
-            style: alerte.type === 'success' ? 'primaire' : 'secondaire',
-          }]}
-          onFermer={() => setAlerte({ ...alerte, visible: false })}
+          texteConfirmer="OK"
+          onConfirmer={fermerAlerte}
+          onAnnuler={fermerAlerte}
         />
       </SafeAreaView>
     </ArrierePlanGradient>
@@ -128,7 +247,7 @@ const styles = StyleSheet.create({
   texteRetour: {
     fontFamily: 'LilitaOne-Regular',
     fontSize: 18,
-    color: '#FDE2FF',
+    color: theme.couleurs.texteClair,
   },
   contenuCentre: {
     flex: 1,
@@ -141,28 +260,36 @@ const styles = StyleSheet.create({
     fontFamily: 'LilitaOne-Regular',
     marginBottom: 30,
     textAlign: 'center',
-    color: '#FDE2FF',
+    color: theme.couleurs.texteClair,
+  },
+  groupeChamp: {
+    marginBottom: 15,
   },
   input: {
     fontFamily: 'LilitaOne-Regular',
     height: 50,
     borderWidth: 1,
-    borderColor: 'rgba(253, 226, 255, 0.3)',
-    backgroundColor: 'rgba(253, 226, 255, 0.1)',
-    color: '#FDE2FF',
+    borderColor: theme.couleurs.champBordure,
+    backgroundColor: theme.couleurs.champFond,
+    color: theme.couleurs.texteClair,
     borderRadius: 12,
     paddingHorizontal: 15,
-    marginBottom: 15,
     fontSize: 16,
   },
+  texteErreur: {
+    marginTop: 6,
+    fontFamily: theme.polices.reguliere,
+    fontSize: 14,
+    color: theme.couleurs.erreur,
+  },
   bouton: {
-    backgroundColor: '#a855f7',
+    backgroundColor: theme.couleurs.violetAccent,
     height: 50,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
-    shadowColor: '#a855f7',
+    shadowColor: theme.couleurs.violetAccent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -180,14 +307,14 @@ const styles = StyleSheet.create({
   },
   lien: {
     fontFamily: 'LilitaOne-Regular',
-    color: '#FDE2FF',
+    color: theme.couleurs.texteClair,
     textAlign: 'center',
     marginTop: 20,
     fontSize: 16,
   },
   lienOublie: {
     fontFamily: 'LilitaOne-Regular',
-    color: '#FDE2FF',
+    color: theme.couleurs.texteClair,
     textAlign: 'right',
     marginBottom: 20,
     fontSize: 14,

@@ -3,50 +3,112 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {BoutonPersonnalise} from '../../composants/BoutonPersonnalise';
+import {
+  AlertePersonnalisee,
+  TypeAlertePersonnalisee,
+} from '../../composants/AlertePersonnalisee';
 import {utiliserAuth} from '../../contextes/ContexteAuth';
 import {theme} from '../../styles/theme';
 
+interface EtatAlerteProfil {
+  visible: boolean;
+  type: TypeAlertePersonnalisee;
+  titre: string;
+  message: string;
+  texteConfirmer?: string;
+  texteAnnuler?: string;
+  onConfirmer?: () => void;
+  onAnnuler?: () => void;
+}
+
 export const EcranProfil = () => {
   const {utilisateur, seDeconnecter, genererCodeAcces} = utiliserAuth();
+  const [alerte, setAlerte] = React.useState<EtatAlerteProfil>({
+    visible: false,
+    type: 'info',
+    titre: '',
+    message: '',
+  });
+
+  const fermerAlerte = React.useCallback(() => {
+    setAlerte(etat => ({
+      ...etat,
+      visible: false,
+      onConfirmer: undefined,
+      onAnnuler: undefined,
+    }));
+  }, []);
+
+  const estObjet = (valeur: unknown): valeur is Record<string, unknown> =>
+    typeof valeur === 'object' && valeur !== null;
+
+  const obtenirChaine = (valeur: unknown): string | undefined =>
+    typeof valeur === 'string' ? valeur : undefined;
 
   const gererDeconnexion = () => {
-    Alert.alert(
-      'Déconnexion',
-      'Voulez-vous vraiment vous déconnecter?',
-      [
-        {text: 'Annuler', style: 'cancel'},
-        {
-          text: 'Déconnexion',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await seDeconnecter();
-            } catch (erreur) {
-              Alert.alert('Erreur', 'Impossible de se déconnecter');
-            }
-          },
-        },
-      ],
-    );
+    const confirmerDeconnexion = async () => {
+      fermerAlerte();
+      try {
+        await seDeconnecter();
+      } catch (erreur: unknown) {
+        const message =
+          estObjet(erreur) ? obtenirChaine(erreur.message) : undefined;
+        setAlerte({
+          visible: true,
+          type: 'avertissement',
+          titre: 'Erreur',
+          message: message ?? 'Impossible de se déconnecter.',
+          texteConfirmer: 'OK',
+          onConfirmer: fermerAlerte,
+          onAnnuler: fermerAlerte,
+        });
+      }
+    };
+
+    setAlerte({
+      visible: true,
+      type: 'confirmation',
+      titre: 'Déconnexion',
+      message: 'Voulez-vous vraiment vous déconnecter?',
+      texteAnnuler: 'Annuler',
+      texteConfirmer: 'Déconnexion',
+      onAnnuler: fermerAlerte,
+      onConfirmer: () => {
+        void confirmerDeconnexion();
+      },
+    });
   };
 
   const gererGenerationCode = async () => {
     try {
       const code = await genererCodeAcces();
-      Alert.alert(
-        'Code d\'accès généré',
-        `Votre code: ${code}\n\nValide pour 5 minutes`,
-        [{text: 'OK'}],
-      );
-    } catch (erreur) {
-      Alert.alert('Erreur', 'Impossible de générer le code');
+      setAlerte({
+        visible: true,
+        type: 'info',
+        titre: "Code d'accès généré",
+        message: `Votre code: ${code}\n\nValide pour 5 minutes`,
+        texteConfirmer: 'OK',
+        onConfirmer: fermerAlerte,
+        onAnnuler: fermerAlerte,
+      });
+    } catch (erreur: unknown) {
+      const message =
+        estObjet(erreur) ? obtenirChaine(erreur.message) : undefined;
+      setAlerte({
+        visible: true,
+        type: 'avertissement',
+        titre: 'Erreur',
+        message: message ?? 'Impossible de générer le code.',
+        texteConfirmer: 'OK',
+        onConfirmer: fermerAlerte,
+        onAnnuler: fermerAlerte,
+      });
     }
   };
 
@@ -106,6 +168,17 @@ export const EcranProfil = () => {
             style={styles.boutonDeconnexion}
           />
         </ScrollView>
+
+        <AlertePersonnalisee
+          visible={alerte.visible}
+          type={alerte.type}
+          titre={alerte.titre}
+          message={alerte.message}
+          texteConfirmer={alerte.texteConfirmer}
+          texteAnnuler={alerte.texteAnnuler}
+          onConfirmer={alerte.onConfirmer}
+          onAnnuler={alerte.onAnnuler}
+        />
       </SafeAreaView>
     </ArrierePlanGradient>
   );

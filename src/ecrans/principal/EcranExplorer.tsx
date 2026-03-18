@@ -3,9 +3,9 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
 } from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {theme} from '../../styles/theme';
 
@@ -29,7 +29,7 @@ export const EcranExplorer = () => {
                 <Text style={styles.texteCategorie}>Sport</Text>
               </View>
               <View style={styles.carteCategorie}>
-                <Text style={styles.texteCategorie}>Tech</Text>
+                <Text style={styles.texteCategorie}>Philo</Text>
               </View>
             </View>
           </View>
@@ -38,7 +38,7 @@ export const EcranExplorer = () => {
             <Text style={styles.titreSection}>Populaire maintenant</Text>
             <View style={styles.carte}>
               <Text style={styles.texteCarte}>
-                Découvrez ce qui est tendance
+                Découvrez les nouveaux flux
               </Text>
             </View>
           </View>
