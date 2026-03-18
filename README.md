@@ -43,21 +43,13 @@ Note : selon la politique de votre équipe / votre repo, vous pourriez préfére
 Dans un terminal :
 
 ```bash
-npm start
+npx react-native start --reset-cache
 ```
 
-Dans un autre terminal :
-
-### Android
+Dans un autre terminal (pour appareil Android):
 
 ```bash
-npm run android
-```
-
-### iOS
-
-```bash
-npm run ios
+npx react-native run-android
 ```
 
 ## Tests
