@@ -6,22 +6,23 @@ import { ArrierePlanGradient } from '../../composants/ArrierePlanGradient';
 import { AlertePersonnalisee } from '../../composants/AlertePersonnalisee';
 import type {NavigationProp, ParamListBase} from '@react-navigation/native';
 import {theme} from '../../styles/theme';
-import {
-  estCourrielValide,
-  estMotDePasseValideConnexion,
-} from '../../utils/validationFormulaire';
+import {validerEmail, validerMotDePasse} from '../../utils/validation';
 
+// Props reçues par le composant via React Navigation
 interface PropsEcranConnexion {
   navigation: NavigationProp<ParamListBase>;
 }
 
+// La connexion ne comporte que deux champs à surveiller (vs quatre pour l'inscription)
 interface ChampsTouchesConnexion {
   email: boolean;
   motDePasse: boolean;
 }
 
+// Erreurs indexées sur les mêmes clés que ChampsTouchesConnexion
 type ErreursConnexion = Partial<Record<keyof ChampsTouchesConnexion, string>>;
 
+// Structure de la modale d'alerte affichée après une réponse du serveur
 interface EtatAlerte {
   visible: boolean;
   type: 'avertissement' | 'info' | 'confirmation';
@@ -39,14 +40,15 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
   const { seConnecter, reinitialiserMotDePasse, chargement } = utiliserAuth();
-  
+
   const [soumissionTentee, setSoumissionTentee] = useState(false);
   const [champsTouches, setChampsTouches] = useState<ChampsTouchesConnexion>({
     email: false,
     motDePasse: false,
   });
 
-  // État pour l'alerte personnalisée (réponses serveur uniquement)
+  // L'alerte personnalisée est réservée aux retours serveur (erreur Firebase, succès).
+  // La validation locale des champs s'affiche directement sous chaque input.
   const [alerte, setAlerte] = useState<EtatAlerte>({
     visible: false,
     type: 'info',
@@ -54,26 +56,32 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
     message: '',
   });
 
+  // Validation en temps réel des deux champs : recalculée à chaque frappe
   const erreurs: ErreursConnexion = useMemo(() => {
     const prochainesErreurs: ErreursConnexion = {};
     const courrielNettoye = email.trim();
 
     if (!courrielNettoye) {
       prochainesErreurs.email = 'Veuillez entrer votre adresse courriel.';
-    } else if (!estCourrielValide(courrielNettoye)) {
+    } else if (!validerEmail(courrielNettoye)) {
       prochainesErreurs.email = 'Adresse courriel invalide.';
     }
 
     if (!motDePasse) {
       prochainesErreurs.motDePasse = 'Veuillez entrer votre mot de passe.';
-    } else if (!estMotDePasseValideConnexion(motDePasse)) {
-      prochainesErreurs.motDePasse = 'Le mot de passe doit avoir au moins 8 caractères.';
+    } else if (!validerMotDePasse(motDePasse)) {
+      prochainesErreurs.motDePasse =
+        'Minimum 8 caractères, une majuscule et un chiffre.';
     }
 
     return prochainesErreurs;
   }, [email, motDePasse]);
 
+  // Dérivé booléen : vrai uniquement si les deux champs sont sans erreur
   const formulaireValide = Object.keys(erreurs).length === 0;
+
+  // Les erreurs ne s'affichent que si l'utilisateur a interagi avec le champ
+  // ou tenté une soumission, pour ne pas afficher de rouge dès l'ouverture de l'écran
   const afficherErreurEmail =
     (soumissionTentee || champsTouches.email) ? erreurs.email : undefined;
   const afficherErreurMotDePasse =
@@ -81,6 +89,7 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
       ? erreurs.motDePasse
       : undefined;
 
+  // Helpers pour contrôler la modale d'alerte depuis les gestionnaires asynchrones
   const afficherAlerte = (
     type: EtatAlerte['type'],
     titreAlerte: string,
@@ -93,6 +102,8 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
     setAlerte(etat => ({...etat, visible: false}));
   };
 
+  // Déclenche la validation complète au clic, puis appelle Firebase si tout est valide.
+  // En cas de succès, le contexte met à jour `utilisateur` et NavigateurApp redirige automatiquement.
   const gererConnexion = async () => {
     setSoumissionTentee(true);
     if (!formulaireValide) {
@@ -112,11 +123,14 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
     }
   };
 
+  // La réinitialisation réutilise le champ courriel déjà visible.
+  // On force la validation de ce champ avant d'envoyer la requête
+  // pour éviter d'appeler Firebase avec une adresse vide ou mal formée.
   const gererMotDePasseOublie = async () => {
     setChampsTouches(etat => ({...etat, email: true}));
     setSoumissionTentee(true);
 
-    if (!email.trim() || !estCourrielValide(email)) {
+    if (!email.trim() || !validerEmail(email)) {
       return;
     }
 
@@ -141,6 +155,8 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
     }
   };
 
+  // Réinitialise la pile de navigation vers l'accueil pour éviter
+  // de revenir à la connexion via le bouton retour système du téléphone
   const gererRetour = () => {
     navigation.reset({
       index: 0,
@@ -151,16 +167,19 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
   return (
     <ArrierePlanGradient>
       <SafeAreaView style={styles.conteneur}>
-        <TouchableOpacity 
+        {/* Bouton retour positionné hors du formulaire, en haut de l'écran */}
+        <TouchableOpacity
           style={styles.boutonRetour}
           onPress={gererRetour}
         >
           <Text style={styles.texteRetour}>← Retour</Text>
         </TouchableOpacity>
 
+        {/* Zone centrale verticalement centrée contenant tous les éléments du formulaire */}
         <View style={styles.contenuCentre}>
           <Text style={styles.titre}>Connexion</Text>
 
+          {/* Champ courriel — sert aussi de saisie pour la réinitialisation du mot de passe */}
           <View style={styles.groupeChamp}>
             <TextInput
               style={styles.input}
@@ -180,6 +199,7 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
             ) : null}
           </View>
 
+          {/* Champ mot de passe masqué */}
           <View style={styles.groupeChamp}>
             <TextInput
               style={styles.input}
@@ -198,10 +218,12 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
             ) : null}
           </View>
 
+          {/* Lien discret aligné à droite pour déclencher la réinitialisation du mot de passe */}
           <TouchableOpacity onPress={gererMotDePasseOublie}>
             <Text style={styles.lienOublie}>Mot de passe oublié?</Text>
           </TouchableOpacity>
 
+          {/* Bouton principal : désactivé visuellement et fonctionnellement pendant le chargement */}
           <TouchableOpacity
             style={[
               styles.bouton,
@@ -215,12 +237,14 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
             </Text>
           </TouchableOpacity>
 
+          {/* Lien vers l'inscription pour les nouveaux utilisateurs */}
           <TouchableOpacity onPress={() => navigation.navigate('Inscription')}>
             <Text style={styles.lien}>Pas encore de compte? Inscrivez-vous</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Alerte personnalisée */}
+        {/* Modale d'alerte pour les réponses serveur, rendue hors du formulaire
+            pour se superposer à tout l'écran */}
         <AlertePersonnalisee
           visible={alerte.visible}
           type={alerte.type}
@@ -236,6 +260,7 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
 };
 
 const styles = StyleSheet.create({
+  // Transparent pour laisser le dégradé s'afficher derrière le contenu
   conteneur: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -249,6 +274,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: theme.couleurs.texteClair,
   },
+  // flex:1 + justifyContent:'center' place le formulaire au milieu de l'espace restant
   contenuCentre: {
     flex: 1,
     justifyContent: 'center',
@@ -265,6 +291,7 @@ const styles = StyleSheet.create({
   groupeChamp: {
     marginBottom: 15,
   },
+  // Fond semi-transparent et bordure légère pour intégrer les champs au dégradé
   input: {
     fontFamily: 'LilitaOne-Regular',
     height: 50,
@@ -282,6 +309,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.couleurs.erreur,
   },
+  // Ombre portée violette pour accentuer visuellement le bouton de connexion
   bouton: {
     backgroundColor: theme.couleurs.violetAccent,
     height: 50,
@@ -312,6 +340,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 16,
   },
+  // Plus petit et aligné à droite pour être discret sans disparaître
   lienOublie: {
     fontFamily: 'LilitaOne-Regular',
     color: theme.couleurs.texteClair,

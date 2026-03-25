@@ -23,6 +23,11 @@ interface PropsAlertePersonnalisee {
   texteAnnuler?: string;
 }
 
+// Remplacement de l'Alert natif de React Native par une modale stylisée.
+// Supporte trois types sémantiques qui changent automatiquement les couleurs et l'icône :
+//   - 'confirmation' : deux boutons (Annuler / Confirmer) pour les actions irréversibles
+//   - 'avertissement': un seul bouton OK sur fond rouge pour signaler une erreur
+//   - 'info'         : un seul bouton OK sur fond violet pour les messages neutres
 export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
   visible,
   type,
@@ -35,6 +40,7 @@ export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
 }) => {
   const [fadeAnim] = React.useState(new Animated.Value(0));
 
+  // Animation de fondu à l'entrée et à la sortie pour éviter un affichage brutal
   React.useEffect(() => {
     if (visible) {
       Animated.timing(fadeAnim, {
@@ -51,6 +57,8 @@ export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
     }
   }, [fadeAnim, visible]);
 
+  // Calcul mémoïsé de la configuration visuelle selon le type d'alerte.
+  // useMemo évite de recalculer cet objet à chaque rendu tant que `type` ne change pas.
   const config = React.useMemo(() => {
     switch (type) {
       case 'confirmation':
@@ -87,6 +95,9 @@ export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
     }
   }, [type]);
 
+  // Comportement du tap en dehors de la carte :
+  // pour une confirmation, on annule (action sûre par défaut)
+  // pour info/avertissement, on confirme (équivalent à appuyer sur OK)
   const gererFermer = React.useCallback(() => {
     if (type === 'confirmation') {
       onAnnuler?.();

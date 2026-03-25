@@ -16,6 +16,9 @@ import {
 import {utiliserAuth} from '../../contextes/ContexteAuth';
 import {theme} from '../../styles/theme';
 
+// Structure étendue par rapport aux autres écrans : les callbacks onConfirmer/onAnnuler
+// sont inclus dans l'état pour que chaque modale (déconnexion, code d'accès, erreur)
+// puisse définir son propre comportement sans variables de fermeture supplémentaires
 interface EtatAlerteProfil {
   visible: boolean;
   type: TypeAlertePersonnalisee;
@@ -27,6 +30,10 @@ interface EtatAlerteProfil {
   onAnnuler?: () => void;
 }
 
+// Écran de profil utilisateur : affiche l'avatar (initiale du courriel),
+// les paramètres du compte, la section support et le bouton de déconnexion.
+// L'état `alerte` gère toutes les modales (confirmation de déconnexion,
+// affichage du code d'accès, messages d'erreur) depuis un seul objet d'état.
 export const EcranProfil = () => {
   const {utilisateur, seDeconnecter, genererCodeAcces} = utiliserAuth();
   const [alerte, setAlerte] = React.useState<EtatAlerteProfil>({
@@ -36,6 +43,9 @@ export const EcranProfil = () => {
     message: '',
   });
 
+  // useCallback mémoïse la fermeture pour éviter des re-rendus inutiles des composants
+  // qui reçoivent cette fonction en prop (AlertePersonnalisee notamment).
+  // On réinitialise aussi les callbacks pour éviter des fermetures stale.
   const fermerAlerte = React.useCallback(() => {
     setAlerte(etat => ({
       ...etat,
@@ -45,12 +55,16 @@ export const EcranProfil = () => {
     }));
   }, []);
 
+  // Gardes de type locales pour extraire des valeurs d'un objet d'erreur inconnu
   const estObjet = (valeur: unknown): valeur is Record<string, unknown> =>
     typeof valeur === 'object' && valeur !== null;
 
   const obtenirChaine = (valeur: unknown): string | undefined =>
     typeof valeur === 'string' ? valeur : undefined;
 
+  // Déconnexion en deux étapes : d'abord une alerte de type 'confirmation'
+  // demande à l'utilisateur de valider, puis `confirmerDeconnexion` exécute
+  // la déconnexion réelle et gère l'erreur si elle survient.
   const gererDeconnexion = () => {
     const confirmerDeconnexion = async () => {
       fermerAlerte();
@@ -85,6 +99,8 @@ export const EcranProfil = () => {
     });
   };
 
+  // Génère un code à 6 chiffres via le contexte et l'affiche dans une modale info.
+  // Note : le message indique "5 minutes" mais ce délai n'est pas encore appliqué côté code
   const gererGenerationCode = async () => {
     try {
       const code = await genererCodeAcces();
@@ -118,6 +134,8 @@ export const EcranProfil = () => {
         <ScrollView contentContainerStyle={styles.contenuScroll}>
           <Text style={styles.titre}>PROFIL</Text>
 
+          {/* Avatar généré dynamiquement à partir de la première lettre du courriel,
+              en majuscule, faute d'une vraie photo de profil */}
           <View style={styles.carteProfil}>
             <View style={styles.avatar}>
               <Text style={styles.texteAvatar}>
@@ -127,9 +145,11 @@ export const EcranProfil = () => {
             <Text style={styles.courriel}>{utilisateur?.email}</Text>
           </View>
 
+          {/* Section Paramètres — les trois premiers éléments n'ont pas encore de onPress
+              (fonctionnalités à implémenter), seul "Générer un code d'accès" est actif */}
           <View style={styles.section}>
             <Text style={styles.titreSection}>Paramètres</Text>
-            
+
             <TouchableOpacity style={styles.elementMenu}>
               <Text style={styles.texteMenu}>Modifier le profil</Text>
             </TouchableOpacity>
@@ -142,16 +162,17 @@ export const EcranProfil = () => {
               <Text style={styles.texteMenu}>Notifications</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.elementMenu}
               onPress={gererGenerationCode}>
               <Text style={styles.texteMenu}>Générer un code d'accès</Text>
             </TouchableOpacity>
           </View>
 
+          {/* Section Support — éléments de menu sans action implémentée pour l'instant */}
           <View style={styles.section}>
             <Text style={styles.titreSection}>Support</Text>
-            
+
             <TouchableOpacity style={styles.elementMenu}>
               <Text style={styles.texteMenu}>Aide & FAQ</Text>
             </TouchableOpacity>
@@ -161,6 +182,8 @@ export const EcranProfil = () => {
             </TouchableOpacity>
           </View>
 
+          {/* Bouton secondaire (transparent + bordure) pour signaler visuellement
+              que la déconnexion est une action destructrice */}
           <BoutonPersonnalise
             titre="DÉCONNEXION"
             auClic={gererDeconnexion}
@@ -169,6 +192,9 @@ export const EcranProfil = () => {
           />
         </ScrollView>
 
+        {/* Modale placée hors du ScrollView pour se superposer à tout l'écran.
+            Les callbacks proviennent directement de l'état pour supporter
+            des comportements différents selon la situation (déconnexion vs code d'accès) */}
         <AlertePersonnalisee
           visible={alerte.visible}
           type={alerte.type}
@@ -199,6 +225,7 @@ const styles = StyleSheet.create({
     color: theme.couleurs.texte,
     marginBottom: theme.espacement.xl,
   },
+  // Carte centrale de l'utilisateur : fond très légèrement teinté avec bordure subtile
   carteProfil: {
     backgroundColor: 'rgba(253, 226, 255, 0.1)',
     borderWidth: 2,
@@ -208,6 +235,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: theme.espacement.xl,
   },
+  // Cercle parfait : borderRadius = moitié de width/height (80/2 = 40)
   avatar: {
     width: 80,
     height: 80,
@@ -236,6 +264,7 @@ const styles = StyleSheet.create({
     color: theme.couleurs.texteClair,
     marginBottom: theme.espacement.md,
   },
+  // Fond encore plus transparent que carteProfil pour créer une hiérarchie visuelle claire
   elementMenu: {
     backgroundColor: 'rgba(253, 226, 255, 0.05)',
     borderWidth: 1,

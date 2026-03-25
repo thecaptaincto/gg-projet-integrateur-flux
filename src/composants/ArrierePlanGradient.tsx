@@ -8,6 +8,9 @@ interface PropsArrierePlanGradient {
   style?: ViewStyle;
 }
 
+// Composant enveloppeur qui applique le dégradé violet signature de l'application.
+// Utilisé comme conteneur de base sur tous les écrans pour assurer une
+// identité visuelle uniforme sans dupliquer la configuration du dégradé.
 export const ArrierePlanGradient: React.FC<PropsArrierePlanGradient> = ({
   children,
   style,

@@ -1,5 +1,9 @@
+// Système de design centralisé de l'application Flux.
+// Toutes les valeurs visuelles (couleurs, polices, espacements) sont définies ici
+// pour garantir une cohérence graphique sur l'ensemble des écrans.
 export const theme = {
   couleurs: {
+    // Dégradé violet foncé → violet profond utilisé comme arrière-plan principal
     debutGradient: '#1a0024',
     milieuGradient: '#3b014a',
     finGradient: '#5c0073',
@@ -22,7 +26,8 @@ export const theme = {
     champFond: 'rgba(253, 226, 255, 0.1)',
     champBordure: 'rgba(253, 226, 255, 0.3)',
 
-    // Alertes
+    // Alertes — chaque type (confirmation, avertissement, info) a ses propres couleurs
+    // pour communiquer visuellement le niveau de sévérité à l'utilisateur
     alerteConfirmationDebut: '#1a0024',
     alerteConfirmationFin: '#3b014a',
     alerteConfirmationBordure: '#a855f7',
@@ -35,11 +40,14 @@ export const theme = {
     alerteInfoFin: '#3b014a',
     alerteInfoBordure: 'rgba(253, 226, 255, 0.35)',
   },
+  // L'application utilise une seule police (LilitaOne) déclinée en trois
+  // aliases pour permettre une migration facile vers des variantes distinctes
   polices: {
     reguliere: 'LilitaOne-Regular',
-    moyenne: 'LilitaOne-Regular', 
+    moyenne: 'LilitaOne-Regular',
     grasse: 'LilitaOne-Regular',
   },
+  // Échelle d'espacement en pixels, du plus petit au plus grand
   espacement: {
     xs: 8,
     sm: 12,

@@ -9,6 +9,10 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {theme} from '../../styles/theme';
 
+// Écran de découverte de contenu.
+// La grille de catégories utilise flexWrap pour s'adapter automatiquement
+// à la largeur de l'écran : chaque carte occupe ~47% de la largeur disponible,
+// formant ainsi deux colonnes sans calcul de largeur fixe.
 export const EcranExplorer = () => {
   return (
     <ArrierePlanGradient>
@@ -20,16 +24,16 @@ export const EcranExplorer = () => {
             <Text style={styles.titreSection}>Catégories</Text>
             <View style={styles.grilleCategories}>
               <View style={styles.carteCategorie}>
-                <Text style={styles.texteCategorie}>Musique</Text>
+                <Text style={styles.texteCategorie}>Marche</Text>
               </View>
               <View style={styles.carteCategorie}>
-                <Text style={styles.texteCategorie}>Art</Text>
+                <Text style={styles.texteCategorie}>Course</Text>
               </View>
               <View style={styles.carteCategorie}>
                 <Text style={styles.texteCategorie}>Sport</Text>
               </View>
               <View style={styles.carteCategorie}>
-                <Text style={styles.texteCategorie}>Philo</Text>
+                <Text style={styles.texteCategorie}>Mystère</Text>
               </View>
             </View>
           </View>

@@ -15,7 +15,7 @@ import {theme} from '../styles/theme';
 import {Text, View, StyleSheet, TouchableOpacity} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
-// Définir les types de navigation
+// Typage strict des routes pour détecter les fautes de navigation à la compilation
 type TypesPilePrincipale = {
   Accueil: undefined;
   Inscription: undefined;
@@ -35,7 +35,8 @@ const Pile = createNativeStackNavigator<TypesPilePrincipale>();
 
 const Onglets = createMaterialTopTabNavigator<TypesOngletsPrincipaux>();
 
-// Icône personnalisée pour les onglets
+// Icône personnalisée pour les onglets : un point indicateur au-dessus de l'étiquette.
+// Le point devient plus grand et change de couleur lorsque l'onglet est actif.
 const IconeOnglet = ({etiquette, actif}: {etiquette: string; actif: boolean}) => (
   <View style={styles.conteneurIconeOnglet}>
     <View
@@ -54,10 +55,16 @@ const IconeOnglet = ({etiquette, actif}: {etiquette: string; actif: boolean}) =>
   </View>
 );
 
+// Barre d'onglets personnalisée positionnée en bas de l'écran.
+// Remplace la tabBar par défaut de MaterialTopTabs pour obtenir
+// un rendu visuel cohérent avec le thème violet de l'application.
 const BarreOngletsBas = ({state, navigation}: any) => {
   const insets = useSafeAreaInsets();
+  // On respecte au minimum 24px de padding pour les appareils sans encoche
   const paddingBas = Math.max(insets.bottom, 24);
 
+  // Dictionnaire de traduction nom de route → étiquette affichée.
+  // Découple les noms techniques des routes des libellés visibles par l'utilisateur.
   const etiquettes: Record<string, string> = {
     OngletPrincipal: 'Accueil',
     OngletExplorer: 'Explorer',
@@ -68,6 +75,8 @@ const BarreOngletsBas = ({state, navigation}: any) => {
 
   return (
     <View style={[styles.barreOnglets, {paddingBottom: paddingBas}]}>
+      {/* Itération sur les routes déclarées dans OngletsPrincipaux.
+          state.index identifie l'onglet actuellement actif. */}
       {state.routes.map((route: any, index: number) => {
         const actif = state.index === index;
         const etiquette = etiquettes[route.name] ?? route.name;
@@ -86,6 +95,10 @@ const BarreOngletsBas = ({state, navigation}: any) => {
   );
 };
 
+// Navigateur à onglets de l'application principale.
+// tabBarPosition="bottom" est ignoré visuellement car tabBar est remplacé par BarreOngletsBas,
+// mais il est conservé pour la logique interne de MaterialTopTabNavigator.
+// swipeEnabled permet de glisser horizontalement entre les écrans.
 const OngletsPrincipaux = () => {
   return (
     <Onglets.Navigator
@@ -119,9 +132,14 @@ const OngletsPrincipaux = () => {
   );
 };
 
+// Composant racine de navigation. Trois scénarios possibles au démarrage :
+//   1. Utilisateur connecté             → route 'Principal' (onglets du bas)
+//   2. Premier lancement (jamais ouvert) → route 'Accueil'  (écran de bienvenue)
+//   3. Déjà venu mais déconnecté        → route 'Connexion' (formulaire direct)
 export const NavigateurApp = () => {
   const {utilisateur, chargement, premierLancement} = utiliserAuth();
 
+  // On attend que Firebase confirme l'état de session avant d'afficher quoi que ce soit
   if (chargement) {
     return null;
   }
@@ -136,8 +154,11 @@ export const NavigateurApp = () => {
         initialRouteName={routeInitiale}
         screenOptions={{
           headerShown: false,
+          // Transparent pour laisser le dégradé ArrierePlanGradient s'afficher
           contentStyle: {backgroundColor: 'transparent'},
         }}>
+        {/* Rendu conditionnel : les écrans d'auth et les écrans principaux sont
+            mutuellement exclusifs selon l'état de connexion de l'utilisateur */}
         {!utilisateur ? (
           <>
             <Pile.Screen name="Accueil" component={EcranAccueil} />
@@ -153,6 +174,7 @@ export const NavigateurApp = () => {
 };
 
 const styles = StyleSheet.create({
+  // Barre sombre calquée sur la couleur de début du dégradé pour une transition visuelle fluide
   barreOnglets: {
     backgroundColor: '#1a0024',
     borderTopWidth: 2,
@@ -163,6 +185,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
   },
+  // flex:1 distribue l'espace horizontal équitablement entre les 5 onglets
   boutonOnglet: {
     flex: 1,
     alignItems: 'center',
@@ -173,6 +196,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Point indicateur inactif : petit et semi-transparent
   pointIconeOnglet: {
     width: 8,
     height: 8,
@@ -180,17 +204,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(253, 226, 255, 0.3)',
     marginBottom: 4,
   },
+  // Point actif : légèrement plus grand et couleur primaire pour attirer l'œil
   pointIconeOngletActif: {
     backgroundColor: theme.couleurs.primaire,
     width: 10,
     height: 10,
     borderRadius: 5,
   },
+  // Étiquette inactive : grisée pour indiquer visuellement qu'elle est sélectionnable
   texteIconeOnglet: {
     fontFamily: theme.polices.reguliere,
     fontSize: 12,
     color: 'rgba(253, 226, 255, 0.5)',
   },
+  // Étiquette active : couleur vive et légèrement plus grande
   texteIconeOngletActif: {
     color: theme.couleurs.primaire,
     fontSize: 13,

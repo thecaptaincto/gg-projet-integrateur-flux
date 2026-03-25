@@ -9,6 +9,9 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {theme} from '../../styles/theme';
 
+// Écran de notifications avec données statiques (prototype).
+// Chaque notification est représentée par un badge coloré (non lu = rose vif,
+// lu = rose transparent) suivi du titre, du message et de l'horodatage.
 export const EcranNotifications = () => {
   return (
     <ArrierePlanGradient>
@@ -17,6 +20,7 @@ export const EcranNotifications = () => {
           <Text style={styles.titre}>NOTIFICATIONS</Text>
 
           <View style={styles.carteNotification}>
+            {/* Badge sans style supplémentaire = notification non lue (rose vif) */}
             <View style={styles.badge} />
             <View style={styles.contenuNotification}>
               <Text style={styles.titreNotification}>Nouvelle notification</Text>
@@ -28,6 +32,7 @@ export const EcranNotifications = () => {
           </View>
 
           <View style={styles.carteNotification}>
+            {/* badgeLu remplace la couleur vive par un rose transparent */}
             <View style={[styles.badge, styles.badgeLu]} />
             <View style={styles.contenuNotification}>
               <Text style={styles.titreNotification}>Mise à jour</Text>

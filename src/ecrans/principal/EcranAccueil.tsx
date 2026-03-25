@@ -13,6 +13,10 @@ interface PropsEcranAccueil {
   navigation: any;
 }
 
+// Écran affiché uniquement lors du tout premier lancement de l'application.
+// Chaque bouton appelle completerPremierLancement() avant la navigation afin
+// de persister l'indicateur dans AsyncStorage et ne plus afficher cet écran
+// lors des prochains démarrages.
 export const EcranAccueil: React.FC<PropsEcranAccueil> = ({navigation}) => {
   const {completerPremierLancement} = utiliserAuth();
 
