@@ -34,7 +34,7 @@ jest.mock('../src/navigation/NavigateurApp', () => ({
   NavigateurApp: () => null,
 }));
 
-test('renders correctly', async () => {
+test("s'affiche correctement", async () => {
   const App = require('../App').default;
   await ReactTestRenderer.act(() => {
     ReactTestRenderer.create(<App />);

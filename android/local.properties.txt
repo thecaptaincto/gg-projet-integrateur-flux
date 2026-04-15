@@ -1,0 +1,2 @@
+sdk.dir=C\:\\Users\\spike\\AppData\\Local\\Android\\Sdk
+ndk.dir=C\:\\Users\\spike\\AppData\\Local\\Android\\Sdk\\ndk\\25.2.9519653

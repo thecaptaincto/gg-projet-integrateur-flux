@@ -32,7 +32,10 @@ local.properties
 *.hprof
 .cxx/
 *.keystore
-!debug.keystore
+*.jks
+key.properties
+android/app/google-services.json
+ios/GoogleService-Info.plist
 .kotlin/
 
 # node.js
@@ -73,3 +76,8 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+node_modules/ 
+.npm-cache/ 
+.gradle-user-home/ 
+.pp-tmp/ 
+android/app/build/ 

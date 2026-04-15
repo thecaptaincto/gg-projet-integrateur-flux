@@ -11,6 +11,7 @@ import {EcranExplorer} from '../ecrans/principal/EcranExplorer';
 import {EcranEnregistrer} from '../ecrans/principal/EcranEnregistrer';
 import {EcranNotifications} from '../ecrans/principal/EcranNotifications';
 import {EcranProfil} from '../ecrans/principal/EcranProfil';
+import {EcranSuiviMouvement} from '../ecrans/principal/EcranSuiviMouvement';
 import {theme} from '../styles/theme';
 import {Text, View, StyleSheet, TouchableOpacity} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -21,6 +22,7 @@ type TypesPilePrincipale = {
   Inscription: undefined;
   Connexion: undefined;
   Principal: undefined;
+  SuiviMouvement: undefined;
 };
 
 type TypesOngletsPrincipaux = {
@@ -166,7 +168,13 @@ export const NavigateurApp = () => {
             <Pile.Screen name="Connexion" component={EcranConnexion} />
           </>
         ) : (
-          <Pile.Screen name="Principal" component={OngletsPrincipaux} />
+          <>
+            <Pile.Screen name="Principal" component={OngletsPrincipaux} />
+            <Pile.Screen
+              name="SuiviMouvement"
+              component={EcranSuiviMouvement}
+            />
+          </>
         )}
       </Pile.Navigator>
     </NavigationContainer>

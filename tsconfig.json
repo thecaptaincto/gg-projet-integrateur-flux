@@ -21,6 +21,9 @@
   "exclude": [
     "node_modules",
     "__tests__",
+    "src/__tests__",
+    "**/__tests__",
+    "external",
     "babel.config.js",
     "metro.config.js",
     "jest.config.js"

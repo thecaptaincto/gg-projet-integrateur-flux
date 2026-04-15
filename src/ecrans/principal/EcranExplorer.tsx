@@ -39,7 +39,7 @@ export const EcranExplorer = () => {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.titreSection}>Populaire maintenant</Text>
+            <Text style={styles.titreSection}>Que faire maintenant?</Text>
             <View style={styles.carte}>
               <Text style={styles.texteCarte}>
                 Découvrez les nouveaux flux

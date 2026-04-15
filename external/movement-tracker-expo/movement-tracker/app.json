@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Movement Tracker",
+    "slug": "movement-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "movement-tracker",
+    "platforms": ["ios", "android"],
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "L'app utilise le GPS pour suivre votre position et calculer votre vitesse.",
+        "NSMotionUsageDescription": "L'app utilise le podomètre pour compter vos pas."
+      }
+    },
+    "android": {
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACTIVITY_RECOGNITION"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "L'app utilise le GPS pour suivre votre position."
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "L'app utilise les capteurs de mouvement."
+        }
+      ]
+    ]
+  }
+}

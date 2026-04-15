@@ -1,0 +1,68 @@
+// ============================================================
+// types.ts — Interfaces centrales pour les capteurs
+// Équivalent de capteurs_base.py (SourceCapteurs)
+// ============================================================
+
+/** Position GPS brute */
+export interface PositionGPS {
+  latitude: number;
+  longitude: number;
+  altitude: number | null;
+  speed: number | null; // m/s, peut être null si non dispo
+  timestamp: number; // ms depuis epoch
+}
+
+/** Données de l'accéléromètre */
+export interface DonneesAccelerometre {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** État complet d'une trame de capteurs */
+export interface TrameCapteurs {
+  position: PositionGPS | null;
+  nombrePasTotal: number | null;
+  accelerometre: DonneesAccelerometre | null;
+  erreurs: string[];
+}
+
+/** Résultat calculé pour l'affichage */
+export interface EtatSuivi {
+  // Position
+  latitude: number | null;
+  longitude: number | null;
+  altitude: number | null;
+
+  // Mouvement
+  vitesseMs: number | null;
+  vitesseKmh: number | null;
+  nombrePasSession: number | null;
+
+  // Accéléromètre
+  accelerometre: DonneesAccelerometre | null;
+
+  // Métadonnées
+  numeroTrame: number;
+  erreurs: string[];
+  estActif: boolean;
+}
+
+/** Configuration du suivi */
+export interface ConfigSuivi {
+  intervalleSondageMs: number;
+  capteursActifs: {
+    gps: boolean;
+    podometre: boolean;
+    accelerometre: boolean;
+  };
+}
+
+export const CONFIG_DEFAUT: ConfigSuivi = {
+  intervalleSondageMs: 1000,
+  capteursActifs: {
+    gps: true,
+    podometre: true,
+    accelerometre: true,
+  },
+};

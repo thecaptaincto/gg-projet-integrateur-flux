@@ -1,6 +1,6 @@
 # Flux
 
-Application mobile développée dans le cadre d’un projet intégrateur (école). Flux est une app React Native (TypeScript) avec authentification, navigation par onglets et plusieurs écrans (accueil, explorer, notifications, profil, paramètres, etc.).
+Application mobile développée dans le cadre d’un projet intégrateur (Cégep Gérald-Godin). Flux est une app React Native (TypeScript) avec authentification, navigation par onglets et plusieurs écrans (accueil, explorer, notifications, profil, paramètres, etc.).
 
 ## Technologies
 
@@ -36,7 +36,7 @@ Ce projet utilise Firebase Authentication via `@react-native-firebase`.
 - Android : placer le fichier `google-services.json` dans `android/app/`
 - iOS : placer `GoogleService-Info.plist` dans `ios/` (si vous activez iOS)
 
-Note : selon la politique de votre équipe / votre repo, vous pourriez préférer *ne pas* versionner ces fichiers si le dépôt est public.
+Note : pour une remise/projet partagé, ces fichiers de configuration Firebase ne devraient pas être inclus (clés/configs). Ajoutez-les localement si vous souhaitez exécuter l’app.
 
 ## Démarrage
 
