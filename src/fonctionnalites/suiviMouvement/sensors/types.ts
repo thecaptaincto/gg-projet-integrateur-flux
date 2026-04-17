@@ -46,6 +46,19 @@ export interface EtatSuivi {
   numeroTrame: number;
   erreurs: string[];
   estActif: boolean;
+  estEnPause: boolean;
+
+  // Statistiques session en cours
+  dureeSecondes: number;
+  distanceMetres: number;
+}
+
+/** Résumé retourné quand une session est arrêtée */
+export interface ResumeSuivi {
+  dureeSecondes: number;
+  distanceMetres: number;
+  nombrePas: number;
+  vitesseMoyenneKmh: number;
 }
 
 /** Configuration du suivi */

@@ -1,86 +1,96 @@
-import React, {useMemo} from 'react';
+import React, {useCallback, useState} from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
   ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {utiliserAuth} from '../../contextes/ContexteAuth';
 import {theme} from '../../styles/theme';
+import {
+  chargerEntrainements,
+  type EntrainementSauvegarde,
+} from '../../utils/stockageEntrainements';
 
-// Tableau de bord principal affiché après la connexion.
-// Le nom affiché dans la salutation est extrait de la partie locale du courriel
-// (avant le @), faute d'un displayName systématiquement renseigné.
+type PeriodeStats = 'jour' | 'semaine' | 'mois';
+
+function formaterDuree(totalSecondes: number): string {
+  const heures = Math.floor(totalSecondes / 3600);
+  const minutes = Math.floor((totalSecondes % 3600) / 60);
+  const secondes = totalSecondes % 60;
+  if (heures > 0) {
+    return `${heures}h ${String(minutes).padStart(2, '0')}m`;
+  }
+  return `${String(minutes).padStart(2, '0')}:${String(secondes).padStart(2, '0')}`;
+}
+
+function formaterDate(isoString: string): string {
+  return new Date(isoString).toLocaleDateString('fr-CA', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function estDansPeriode(dateISO: string, periode: PeriodeStats): boolean {
+  const date = new Date(dateISO);
+  const maintenant = new Date();
+  const debutJour = new Date(maintenant);
+  debutJour.setHours(0, 0, 0, 0);
+
+  if (periode === 'jour') {
+    return date >= debutJour;
+  }
+  if (periode === 'semaine') {
+    const debutSemaine = new Date(debutJour);
+    debutSemaine.setDate(debutJour.getDate() - debutJour.getDay());
+    return date >= debutSemaine;
+  }
+  // mois
+  const debutMois = new Date(maintenant.getFullYear(), maintenant.getMonth(), 1);
+  return date >= debutMois;
+}
+
+const ETIQUETTES_PERIODE: Record<PeriodeStats, string> = {
+  jour: "Aujourd'hui",
+  semaine: 'Semaine',
+  mois: 'Mois',
+};
+
 export const EcranPrincipal = () => {
   const {utilisateur} = utiliserAuth();
+  const navigation = useNavigation<any>();
+  const [periode, setPeriode] = useState<PeriodeStats>('semaine');
+  const [entrainements, setEntrainements] = useState<EntrainementSauvegarde[]>([]);
 
-  const activitesRecentes = useMemo(
-    () => [
-      {
-        id: 'a1',
-        type: 'Vélo',
-        icone: '🚴',
-        date: '24 mars 2026',
-        dureeSecondes: 42 * 60 + 18,
-        distanceKm: 18.6,
-      },
-      {
-        id: 'a2',
-        type: 'Course',
-        icone: '🏃',
-        date: '22 mars 2026',
-        dureeSecondes: 28 * 60 + 4,
-        distanceKm: 5.2,
-      },
-      {
-        id: 'a3',
-        type: 'Marche',
-        icone: '🚶',
-        date: '20 mars 2026',
-        dureeSecondes: 85 * 60 + 2,
-        distanceKm: 6.7,
-      },
-    ],
-    [],
+  // Recharger à chaque fois qu'on revient sur cet écran
+  useFocusEffect(
+    useCallback(() => {
+      chargerEntrainements().then(setEntrainements);
+    }, []),
   );
 
-  const formaterDuree = (totalSecondes: number): string => {
-    const heures = Math.floor(totalSecondes / 3600);
-    const minutes = Math.floor((totalSecondes % 3600) / 60);
-    const secondes = totalSecondes % 60;
+  const entrainementsPeriode = entrainements.filter(e =>
+    estDansPeriode(e.dateISO, periode),
+  );
 
-    if (heures > 0) {
-      return `${heures}h ${String(minutes).padStart(2, '0')}m`;
-    }
-
-    return `${String(minutes).padStart(2, '0')}:${String(secondes).padStart(
-      2,
-      '0',
-    )}`;
+  const stats = {
+    nbSessions: entrainementsPeriode.length,
+    distanceTotaleKm: entrainementsPeriode.reduce(
+      (acc, e) => acc + e.distanceMetres / 1000,
+      0,
+    ),
+    tempsTotalSecondes: entrainementsPeriode.reduce(
+      (acc, e) => acc + e.dureeSecondes,
+      0,
+    ),
   };
 
-  const vitesseMoyenne = (distanceKm: number, dureeSecondes: number): number => {
-    if (dureeSecondes <= 0) {
-      return 0;
-    }
-    return distanceKm / (dureeSecondes / 3600);
-  };
-
-  const statsSemaine = useMemo(() => {
-    const nbSessions = activitesRecentes.length;
-    const distanceTotale = activitesRecentes.reduce(
-      (total, a) => total + a.distanceKm,
-      0,
-    );
-    const tempsTotalSecondes = activitesRecentes.reduce(
-      (total, a) => total + a.dureeSecondes,
-      0,
-    );
-
-    return {nbSessions, distanceTotale, tempsTotalSecondes};
-  }, [activitesRecentes]);
+  const recents = entrainements.slice(0, 5);
 
   return (
     <ArrierePlanGradient>
@@ -91,67 +101,106 @@ export const EcranPrincipal = () => {
             Bienvenue, {utilisateur?.email?.split('@')[0] || 'Utilisateur'}!
           </Text>
 
+          {/* Section statistiques */}
           <View style={styles.section}>
-            <Text style={styles.titreSection}>Statistiques de la semaine</Text>
-            <View style={styles.grilleStats}>
-              <View style={styles.carteStat}>
-                <Text style={styles.valeurStat}>{statsSemaine.nbSessions}</Text>
-                <Text style={styles.libelleStat}>Sessions</Text>
-              </View>
-              <View style={styles.carteStat}>
-                <Text style={styles.valeurStat}>
-                  {statsSemaine.distanceTotale.toFixed(1)}
-                </Text>
-                <Text style={styles.libelleStat}>km</Text>
-              </View>
-              <View style={styles.carteStat}>
-                <Text style={styles.valeurStat}>
-                  {formaterDuree(statsSemaine.tempsTotalSecondes)}
-                </Text>
-                <Text style={styles.libelleStat}>Temps</Text>
+            <View style={styles.enteteSection}>
+              <Text style={styles.titreSection}>Statistiques</Text>
+              <View style={styles.toggleRow}>
+                {(['jour', 'semaine', 'mois'] as PeriodeStats[]).map(p => (
+                  <TouchableOpacity
+                    key={p}
+                    style={[
+                      styles.toggleBouton,
+                      periode === p && styles.toggleBoutonActif,
+                    ]}
+                    onPress={() => setPeriode(p)}>
+                    <Text
+                      style={[
+                        styles.toggleTexte,
+                        periode === p && styles.toggleTexteActif,
+                      ]}>
+                      {ETIQUETTES_PERIODE[p]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
+
+            {stats.nbSessions === 0 ? (
+              <Text style={styles.aucuneDonnee}>
+                Aucun entraînement pour cette période.
+              </Text>
+            ) : (
+              <View style={styles.grilleStats}>
+                <View style={styles.carteStat}>
+                  <Text style={styles.valeurStat}>{stats.nbSessions}</Text>
+                  <Text style={styles.libelleStat}>Sessions</Text>
+                </View>
+                <View style={styles.carteStat}>
+                  <Text style={styles.valeurStat}>
+                    {stats.distanceTotaleKm.toFixed(1)}
+                  </Text>
+                  <Text style={styles.libelleStat}>km</Text>
+                </View>
+                <View style={styles.carteStat}>
+                  <Text style={styles.valeurStat}>
+                    {formaterDuree(stats.tempsTotalSecondes)}
+                  </Text>
+                  <Text style={styles.libelleStat}>Temps</Text>
+                </View>
+              </View>
+            )}
           </View>
 
+          {/* Section activités récentes */}
           <View style={styles.section}>
-            <Text style={styles.titreSection}>Dernières activités</Text>
-            {activitesRecentes.slice(0, 3).map(activite => {
-              const vm = vitesseMoyenne(
-                activite.distanceKm,
-                activite.dureeSecondes,
-              );
+            <View style={styles.enteteSection}>
+              <Text style={styles.titreSection}>Dernières activités</Text>
+              {entrainements.length > 0 ? (
+                <TouchableOpacity onPress={() => navigation.navigate('Historique')}>
+                  <Text style={styles.lienHistorique}>Voir tout</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
 
-              return (
-                <View key={activite.id} style={styles.carteActivite}>
+            {recents.length === 0 ? (
+              <Text style={styles.aucuneDonnee}>
+                Lance ton premier entraînement pour le voir ici.
+              </Text>
+            ) : (
+              recents.map(entrainement => (
+                <View key={entrainement.id} style={styles.carteActivite}>
                   <View style={styles.iconeActivite}>
-                    <Text style={styles.texteIconeActivite}>
-                      {activite.icone}
-                    </Text>
+                    <Text style={styles.texteIconeActivite}>🏃</Text>
                   </View>
-
                   <View style={styles.contenuActivite}>
                     <View style={styles.ligneActivite}>
-                      <Text style={styles.titreActivite}>{activite.type}</Text>
-                      <Text style={styles.dateActivite}>{activite.date}</Text>
+                      <Text style={styles.titreActivite} numberOfLines={1}>
+                        {entrainement.nom}
+                      </Text>
+                      <Text style={styles.dateActivite}>
+                        {formaterDate(entrainement.dateISO)}
+                      </Text>
                     </View>
-
                     <View style={styles.ligneDetails}>
                       <Text style={styles.detailActivite}>
-                        {formaterDuree(activite.dureeSecondes)}
+                        {formaterDuree(entrainement.dureeSecondes)}
                       </Text>
                       <Text style={styles.separateur}>•</Text>
                       <Text style={styles.detailActivite}>
-                        {activite.distanceKm.toFixed(1)} km
+                        {entrainement.distanceMetres >= 1000
+                          ? `${(entrainement.distanceMetres / 1000).toFixed(2)} km`
+                          : `${Math.round(entrainement.distanceMetres)} m`}
                       </Text>
                       <Text style={styles.separateur}>•</Text>
                       <Text style={styles.detailActivite}>
-                        {vm.toFixed(1)} km/h
+                        {entrainement.nombrePas} pas
                       </Text>
                     </View>
                   </View>
                 </View>
-              );
-            })}
+              ))
+            )}
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -160,9 +209,7 @@ export const EcranPrincipal = () => {
 };
 
 const styles = StyleSheet.create({
-  conteneur: {
-    flex: 1,
-  },
+  conteneur: {flex: 1},
   contenuScroll: {
     paddingHorizontal: theme.espacement.lg,
     paddingTop: theme.espacement.lg,
@@ -183,11 +230,48 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: theme.espacement.xl,
   },
+  enteteSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.espacement.sm,
+    flexWrap: 'wrap',
+    gap: theme.espacement.sm,
+  },
   titreSection: {
     fontFamily: theme.polices.reguliere,
     fontSize: 24,
     color: theme.couleurs.texte,
-    marginBottom: theme.espacement.sm,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(253,226,255,0.08)',
+    borderRadius: theme.rayonBordure.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(253,226,255,0.2)',
+    overflow: 'hidden',
+  },
+  toggleBouton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  toggleBoutonActif: {
+    backgroundColor: theme.couleurs.violetAccent,
+  },
+  toggleTexte: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 13,
+    color: theme.couleurs.texteSecondaire,
+  },
+  toggleTexteActif: {
+    color: theme.couleurs.texte,
+  },
+  aucuneDonnee: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 15,
+    color: theme.couleurs.placeholder,
+    fontStyle: 'italic',
+    paddingVertical: theme.espacement.md,
   },
   grilleStats: {
     flexDirection: 'row',
@@ -214,6 +298,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.couleurs.texteSecondaire,
   },
+  lienHistorique: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 14,
+    color: theme.couleurs.violetAccent,
+  },
   carteActivite: {
     flexDirection: 'row',
     backgroundColor: 'rgba(253, 226, 255, 0.08)',
@@ -238,23 +327,23 @@ const styles = StyleSheet.create({
     fontFamily: theme.polices.reguliere,
     fontSize: 22,
   },
-  contenuActivite: {
-    flex: 1,
-  },
+  contenuActivite: {flex: 1},
   ligneActivite: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
+    gap: theme.espacement.sm,
   },
   titreActivite: {
     fontFamily: theme.polices.reguliere,
-    fontSize: 20,
+    fontSize: 18,
     color: theme.couleurs.texte,
+    flex: 1,
   },
   dateActivite: {
     fontFamily: theme.polices.reguliere,
-    fontSize: 14,
+    fontSize: 12,
     color: theme.couleurs.texteSecondaire,
   },
   ligneDetails: {

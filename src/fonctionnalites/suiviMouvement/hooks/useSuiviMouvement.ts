@@ -1,15 +1,10 @@
-// ============================================================
-// useSuiviMouvement.ts — Hook principal de suivi en temps réel
-// Porté depuis le projet Expo de ton ami, avec un fix important :
-// on garde une ref de "cleanup" pour vraiment arreter le polling.
-// ============================================================
-
 import {useCallback, useEffect, useRef, useState} from 'react';
 import type {
   ConfigSuivi,
   DonneesAccelerometre,
   EtatSuivi,
   PositionGPS,
+  ResumeSuivi,
 } from '../sensors/types';
 import {CONFIG_DEFAUT} from '../sensors/types';
 import {
@@ -20,38 +15,61 @@ import {
   verifierDisponibilitePodometre,
 } from '../sensors/deviceSensors';
 import {SourceCapteursSimules} from '../sensors/simulatedSensors';
-import {extraireVitesseMs, msVersKmh} from '../utils/calculations';
+import {
+  calculerDistanceMetres,
+  extraireVitesseMs,
+  msVersKmh,
+} from '../utils/calculations';
 
 interface OptionsHook {
   config?: ConfigSuivi;
   simulation?: boolean;
 }
 
+const ETAT_INITIAL: EtatSuivi = {
+  latitude: null,
+  longitude: null,
+  altitude: null,
+  vitesseMs: null,
+  vitesseKmh: null,
+  nombrePasSession: null,
+  accelerometre: null,
+  numeroTrame: 0,
+  erreurs: [],
+  estActif: false,
+  estEnPause: false,
+  dureeSecondes: 0,
+  distanceMetres: 0,
+};
+
 export function useSuiviMouvement(options: OptionsHook = {}) {
   const {config = CONFIG_DEFAUT, simulation = false} = options;
 
-  // -- État principal (ce qui s'affiche) --
-  const [etat, setEtat] = useState<EtatSuivi>({
-    latitude: null,
-    longitude: null,
-    altitude: null,
-    vitesseMs: null,
-    vitesseKmh: null,
-    nombrePasSession: null,
-    accelerometre: null,
-    numeroTrame: 0,
-    erreurs: [],
-    estActif: false,
-  });
+  const [etat, setEtat] = useState<EtatSuivi>(ETAT_INITIAL);
+  const [resumeSession, setResumeSession] = useState<ResumeSuivi | null>(null);
 
-  // -- Refs pour les valeurs entre les trames --
+  // Refs session
   const positionPrecedenteRef = useRef<PositionGPS | null>(null);
   const pasDepartRef = useRef<number | null>(null);
   const trameRef = useRef(0);
+  const distanceTotaleRef = useRef(0);
+  const heureDebutSegmentRef = useRef<number | null>(null);
+  const dureeAccumuleeRef = useRef(0);
+
+  // Refs capteurs
   const simulRef = useRef<SourceCapteursSimules | null>(null);
   const annulerCapteursRef = useRef<null | (() => void)>(null);
+  const callbackSimulRef = useRef<
+    ((trame: ReturnType<SourceCapteursSimules['lireTrame']>) => void) | null
+  >(null);
+  const estEnPauseRef = useRef(false);
 
-  // -- Traitement d'une trame --
+  const dureeSecondesCourantes = () =>
+    dureeAccumuleeRef.current +
+    (heureDebutSegmentRef.current
+      ? (Date.now() - heureDebutSegmentRef.current) / 1000
+      : 0);
+
   const traiterTrame = useCallback(
     (
       position: PositionGPS | null,
@@ -61,7 +79,7 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
       const erreurs: string[] = [];
       trameRef.current++;
 
-      // Pas de session (meme logique que Python)
+      // Pas de session
       if (nombrePasTotal !== null && pasDepartRef.current === null) {
         pasDepartRef.current = nombrePasTotal;
       }
@@ -70,7 +88,17 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
           ? nombrePasTotal - pasDepartRef.current
           : null;
 
-      // Vitesse avec fallback Haversine
+      // Distance cumulée
+      if (position && positionPrecedenteRef.current) {
+        const delta = calculerDistanceMetres(
+          positionPrecedenteRef.current.latitude,
+          positionPrecedenteRef.current.longitude,
+          position.latitude,
+          position.longitude,
+        );
+        distanceTotaleRef.current += delta;
+      }
+
       const vitesseMs = extraireVitesseMs(
         position,
         positionPrecedenteRef.current,
@@ -80,6 +108,8 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
       if (position) {
         positionPrecedenteRef.current = position;
       }
+
+      const dureeSecondes = Math.round(dureeSecondesCourantes());
 
       setEtat({
         latitude: position?.latitude ?? null,
@@ -92,8 +122,12 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
         numeroTrame: trameRef.current,
         erreurs,
         estActif: true,
+        estEnPause: false,
+        dureeSecondes,
+        distanceMetres: distanceTotaleRef.current,
       });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
@@ -101,6 +135,10 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
     positionPrecedenteRef.current = null;
     pasDepartRef.current = null;
     trameRef.current = 0;
+    distanceTotaleRef.current = 0;
+    dureeAccumuleeRef.current = 0;
+    heureDebutSegmentRef.current = null;
+    estEnPauseRef.current = false;
   }, []);
 
   // -- Mode simulation --
@@ -109,15 +147,18 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
       return;
     }
     reinitialiserRefsSession();
+    heureDebutSegmentRef.current = Date.now();
 
     const simul = new SourceCapteursSimules();
     simulRef.current = simul;
 
-    simul.demarrer(config.intervalleSondageMs, trame => {
+    const cb = (trame: ReturnType<typeof simul.lireTrame>) => {
       traiterTrame(trame.position, trame.nombrePasTotal, trame.accelerometre);
-    });
+    };
+    callbackSimulRef.current = cb;
+    simul.demarrer(config.intervalleSondageMs, cb);
 
-    setEtat(prev => ({...prev, estActif: true, erreurs: []}));
+    setEtat(prev => ({...prev, estActif: true, estEnPause: false, erreurs: []}));
   }, [config.intervalleSondageMs, reinitialiserRefsSession, traiterTrame]);
 
   // -- Mode capteurs réels --
@@ -126,10 +167,10 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
       return;
     }
     reinitialiserRefsSession();
+    heureDebutSegmentRef.current = Date.now();
 
     const erreurs: string[] = [];
 
-    // Permission GPS
     if (config.capteursActifs.gps) {
       const permGPS = await demanderPermissionGPS();
       if (!permGPS) {
@@ -137,7 +178,6 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
       }
     }
 
-    // Verifier podometre
     if (config.capteursActifs.podometre) {
       const podoDispo = await verifierDisponibilitePodometre();
       if (!podoDispo) {
@@ -145,7 +185,6 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
       }
     }
 
-    // Souscrire a l'accelerometre
     let annulerAccel: (() => void) | null = null;
     let derniereAccel: DonneesAccelerometre | null = null;
     if (config.capteursActifs.accelerometre) {
@@ -158,7 +197,6 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
       annulerAccel = sub.annuler;
     }
 
-    // Souscrire au podometre
     let annulerPodo: (() => void) | null = null;
     let derniersPas: number | null = null;
     if (config.capteursActifs.podometre) {
@@ -168,7 +206,6 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
       annulerPodo = sub.annuler;
     }
 
-    // Boucle de sondage GPS
     const intervalId = setInterval(async () => {
       let position: PositionGPS | null = null;
       if (config.capteursActifs.gps) {
@@ -184,10 +221,45 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
     };
 
     annulerCapteursRef.current = nettoyer;
-    setEtat(prev => ({...prev, estActif: true, erreurs}));
+    setEtat(prev => ({...prev, estActif: true, estEnPause: false, erreurs}));
   }, [config, reinitialiserRefsSession, traiterTrame]);
 
-  // -- Demarrer / Arreter --
+  // -- Pause / Reprendre --
+  const pauseReprendre = useCallback(() => {
+    const estPauseMaintenant = !estEnPauseRef.current;
+    estEnPauseRef.current = estPauseMaintenant;
+
+    if (estPauseMaintenant) {
+      // Pause : accumuler la durée du segment en cours
+      if (heureDebutSegmentRef.current !== null) {
+        dureeAccumuleeRef.current +=
+          (Date.now() - heureDebutSegmentRef.current) / 1000;
+        heureDebutSegmentRef.current = null;
+      }
+      // Arrêter le polling
+      if (simulation) {
+        simulRef.current?.arreter();
+      } else {
+        annulerCapteursRef.current?.();
+        annulerCapteursRef.current = null;
+      }
+      setEtat(prev => ({...prev, estEnPause: true}));
+    } else {
+      // Reprendre : démarrer un nouveau segment
+      heureDebutSegmentRef.current = Date.now();
+      if (simulation && simulRef.current) {
+        const cb = callbackSimulRef.current;
+        if (cb) {
+          simulRef.current.demarrer(config.intervalleSondageMs, cb);
+        }
+      } else if (!simulation) {
+        void demarrerCapteurs();
+      }
+      setEtat(prev => ({...prev, estEnPause: false}));
+    }
+  }, [simulation, config.intervalleSondageMs, demarrerCapteurs]);
+
+  // -- Démarrer / Arrêter --
   const demarrer = useCallback(() => {
     if (simulation) {
       demarrerSimulation();
@@ -197,21 +269,42 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
   }, [simulation, demarrerSimulation, demarrerCapteurs]);
 
   const arreter = useCallback(() => {
+    // Calculer le résumé avant réinitialisation
+    const dureeFinale = Math.round(dureeSecondesCourantes());
+    const distanceFinale = distanceTotaleRef.current;
+    const pasFinaux = etat.nombrePasSession ?? 0;
+    const vitesseMoy =
+      dureeFinale > 0 ? (distanceFinale / dureeFinale) * 3.6 : 0;
+
+    const resume: ResumeSuivi = {
+      dureeSecondes: dureeFinale,
+      distanceMetres: distanceFinale,
+      nombrePas: pasFinaux,
+      vitesseMoyenneKmh: vitesseMoy,
+    };
+
+    // Arrêter les capteurs
     simulRef.current?.arreter();
     simulRef.current = null;
-
+    callbackSimulRef.current = null;
     annulerCapteursRef.current?.();
     annulerCapteursRef.current = null;
 
-    setEtat(prev => ({...prev, estActif: false}));
+    reinitialiserRefsSession();
+    setEtat({...ETAT_INITIAL});
+    setResumeSession(resume);
+  }, [etat.nombrePasSession, reinitialiserRefsSession]);
+
+  const effacerResume = useCallback(() => {
+    setResumeSession(null);
   }, []);
 
-  // Nettoyage a la destruction du composant
   useEffect(() => {
     return () => {
-      arreter();
+      simulRef.current?.arreter();
+      annulerCapteursRef.current?.();
     };
-  }, [arreter]);
+  }, []);
 
-  return {etat, demarrer, arreter};
+  return {etat, demarrer, arreter, pauseReprendre, resumeSession, effacerResume};
 }

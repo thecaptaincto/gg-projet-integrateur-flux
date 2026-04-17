@@ -1,29 +1,83 @@
-import React, {useState} from 'react';
-import {ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import React, {useEffect, useRef, useState} from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {Dashboard, useSuiviMouvement} from '../../fonctionnalites/suiviMouvement';
 import {theme} from '../../styles/theme';
+import {sauvegarderEntrainement} from '../../utils/stockageEntrainements';
+
+function formaterDureeResume(s: number): string {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) {
+    return `${h}h ${String(m).padStart(2, '0')}m`;
+  }
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
 
 export const EcranSuiviMouvement = () => {
   const navigation = useNavigation<any>();
-
-  // Pour que ça marche tout de suite dans ton projet React Native CLI, on démarre en simulation.
-  // Quand tu seras prêt à brancher les vrais capteurs, on pourra passer à false + implémenter deviceSensors.ts.
   const [modeSimulation] = useState(true);
+  const [nomEntrainement, setNomEntrainement] = useState('');
+  const inputRef = useRef<TextInput>(null);
 
-  const {etat, demarrer, arreter} = useSuiviMouvement({
-    simulation: modeSimulation,
-    config: {
-      intervalleSondageMs: 1000,
-      capteursActifs: {
-        gps: true,
-        podometre: true,
-        accelerometre: true,
+  const {etat, demarrer, arreter, pauseReprendre, resumeSession, effacerResume} =
+    useSuiviMouvement({
+      simulation: modeSimulation,
+      config: {
+        intervalleSondageMs: 1000,
+        capteursActifs: {gps: true, podometre: true, accelerometre: true},
       },
-    },
-  });
+    });
+
+  // Pré-remplir le nom avec la date quand la modal apparaît
+  useEffect(() => {
+    if (resumeSession) {
+      const maintenant = new Date();
+      const dateStr = maintenant.toLocaleDateString('fr-CA', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      });
+      setNomEntrainement(
+        dateStr.charAt(0).toUpperCase() + dateStr.slice(1),
+      );
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [resumeSession]);
+
+  const handleSauvegarder = async () => {
+    if (!resumeSession) {
+      return;
+    }
+    const nom = nomEntrainement.trim() || 'Entraînement';
+    await sauvegarderEntrainement({
+      nom,
+      dateISO: new Date().toISOString(),
+      dureeSecondes: resumeSession.dureeSecondes,
+      distanceMetres: resumeSession.distanceMetres,
+      nombrePas: resumeSession.nombrePas,
+      vitesseMoyenneKmh: resumeSession.vitesseMoyenneKmh,
+    });
+    effacerResume();
+    setNomEntrainement('');
+    navigation.goBack();
+  };
+
+  const handleIgnorer = () => {
+    effacerResume();
+    setNomEntrainement('');
+    navigation.goBack();
+  };
 
   return (
     <ArrierePlanGradient>
@@ -50,18 +104,70 @@ export const EcranSuiviMouvement = () => {
             estActif={etat.estActif}
             onDemarrer={demarrer}
             onArreter={arreter}
+            onPauseReprendre={pauseReprendre}
             modeSimulation={modeSimulation}
           />
         </ScrollView>
+
+        {/* Modal de nommage de l'entraînement */}
+        {resumeSession ? (
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitre}>Entraînement terminé</Text>
+
+              {/* Résumé rapide */}
+              <View style={styles.resumeGrille}>
+                <View style={styles.resumeItem}>
+                  <Text style={styles.resumeValeur}>
+                    {formaterDureeResume(resumeSession.dureeSecondes)}
+                  </Text>
+                  <Text style={styles.resumeLibelle}>Durée</Text>
+                </View>
+                <View style={styles.resumeItem}>
+                  <Text style={styles.resumeValeur}>
+                    {resumeSession.distanceMetres >= 1000
+                      ? `${(resumeSession.distanceMetres / 1000).toFixed(2)} km`
+                      : `${Math.round(resumeSession.distanceMetres)} m`}
+                  </Text>
+                  <Text style={styles.resumeLibelle}>Distance</Text>
+                </View>
+                <View style={styles.resumeItem}>
+                  <Text style={styles.resumeValeur}>{resumeSession.nombrePas}</Text>
+                  <Text style={styles.resumeLibelle}>Pas</Text>
+                </View>
+              </View>
+
+              <Text style={styles.modalLabel}>Nom de l'entraînement</Text>
+              <TextInput
+                ref={inputRef}
+                style={styles.champNom}
+                value={nomEntrainement}
+                onChangeText={setNomEntrainement}
+                placeholder="Ex: Course matinale"
+                placeholderTextColor={theme.couleurs.placeholder}
+                maxLength={50}
+                returnKeyType="done"
+                onSubmitEditing={handleSauvegarder}
+              />
+
+              <TouchableOpacity
+                style={styles.boutonSauvegarder}
+                onPress={handleSauvegarder}>
+                <Text style={styles.boutonSauvegarderTexte}>Sauvegarder</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.boutonIgnorer} onPress={handleIgnorer}>
+                <Text style={styles.boutonIgnorerTexte}>Ne pas sauvegarder</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
       </SafeAreaView>
     </ArrierePlanGradient>
   );
 };
 
 const styles = StyleSheet.create({
-  conteneur: {
-    flex: 1,
-  },
+  conteneur: {flex: 1},
   barreHaut: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -83,9 +189,7 @@ const styles = StyleSheet.create({
     color: theme.couleurs.texte,
     fontSize: 16,
   },
-  titreBox: {
-    flex: 1,
-  },
+  titreBox: {flex: 1},
   titre: {
     fontFamily: theme.polices.reguliere,
     color: theme.couleurs.texte,
@@ -97,11 +201,86 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
-  scroll: {
-    flex: 1,
-  },
+  scroll: {flex: 1},
   scrollContent: {
     flexGrow: 1,
     paddingBottom: theme.espacement.xl,
+  },
+  // Modal
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: theme.couleurs.overlayModal,
+    justifyContent: 'center',
+    paddingHorizontal: theme.espacement.lg,
+  },
+  modalBox: {
+    backgroundColor: theme.couleurs.milieuGradient,
+    borderRadius: theme.rayonBordure.lg,
+    borderWidth: 2,
+    borderColor: theme.couleurs.bordureTransparente,
+    padding: theme.espacement.lg,
+  },
+  modalTitre: {
+    fontFamily: theme.polices.grasse,
+    fontSize: 26,
+    color: theme.couleurs.texte,
+    textAlign: 'center',
+    marginBottom: theme.espacement.md,
+  },
+  resumeGrille: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: theme.espacement.lg,
+  },
+  resumeItem: {alignItems: 'center'},
+  resumeValeur: {
+    fontFamily: theme.polices.grasse,
+    fontSize: 22,
+    color: theme.couleurs.primaire,
+  },
+  resumeLibelle: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 12,
+    color: theme.couleurs.texteSecondaire,
+    marginTop: 2,
+  },
+  modalLabel: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 14,
+    color: theme.couleurs.texteSecondaire,
+    marginBottom: theme.espacement.xs,
+  },
+  champNom: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 18,
+    color: theme.couleurs.texte,
+    backgroundColor: theme.couleurs.champFond,
+    borderWidth: 2,
+    borderColor: theme.couleurs.champBordure,
+    borderRadius: theme.rayonBordure.md,
+    paddingHorizontal: theme.espacement.md,
+    paddingVertical: theme.espacement.sm,
+    marginBottom: theme.espacement.md,
+  },
+  boutonSauvegarder: {
+    backgroundColor: theme.couleurs.boutonPrimaire,
+    borderRadius: theme.rayonBordure.md,
+    paddingVertical: theme.espacement.md,
+    alignItems: 'center',
+    marginBottom: theme.espacement.sm,
+  },
+  boutonSauvegarderTexte: {
+    fontFamily: theme.polices.grasse,
+    fontSize: 16,
+    color: theme.couleurs.texteBoutonPrimaire,
+  },
+  boutonIgnorer: {
+    paddingVertical: theme.espacement.sm,
+    alignItems: 'center',
+  },
+  boutonIgnorerTexte: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 14,
+    color: theme.couleurs.texteSecondaire,
   },
 });

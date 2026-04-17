@@ -1,10 +1,6 @@
-// ============================================================
-// Dashboard.tsx — Affichage temps reel des capteurs
-// Porté depuis le projet Expo de ton ami (sans Expo Router).
-// ============================================================
-
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {theme} from '../../../styles/theme';
 import type {EtatSuivi} from '../sensors/types';
 
 interface PropsDashboard {
@@ -12,14 +8,25 @@ interface PropsDashboard {
   estActif: boolean;
   onDemarrer: () => void;
   onArreter: () => void;
+  onPauseReprendre: () => void;
   modeSimulation: boolean;
+}
+
+function formaterDuree(totalSecondes: number): string {
+  const h = Math.floor(totalSecondes / 3600);
+  const m = Math.floor((totalSecondes % 3600) / 60);
+  const s = totalSecondes % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 function CarteMetrique({
   titre,
   valeur,
   unite,
-  couleur = '#4ECDC4',
+  couleur = theme.couleurs.violetAccent,
 }: {
   titre: string;
   valeur: string;
@@ -42,6 +49,7 @@ export function Dashboard({
   estActif,
   onDemarrer,
   onArreter,
+  onPauseReprendre,
   modeSimulation,
 }: PropsDashboard) {
   const {
@@ -54,6 +62,9 @@ export function Dashboard({
     accelerometre,
     numeroTrame,
     erreurs,
+    estEnPause,
+    dureeSecondes,
+    distanceMetres,
   } = etat;
 
   return (
@@ -64,14 +75,20 @@ export function Dashboard({
           <View
             style={[
               styles.badge,
-              {backgroundColor: estActif ? '#2ECC71' : '#95A5A6'},
+              {
+                backgroundColor: estActif
+                  ? estEnPause
+                    ? theme.couleurs.champBordure
+                    : theme.couleurs.violetAccent
+                  : 'rgba(253,226,255,0.2)',
+              },
             ]}>
             <Text style={styles.badgeTexte}>
-              {estActif ? 'ACTIF' : 'ARRÊTÉ'}
+              {estActif ? (estEnPause ? 'EN PAUSE' : 'ACTIF') : 'ARRÊTÉ'}
             </Text>
           </View>
           {modeSimulation ? (
-            <View style={[styles.badge, {backgroundColor: '#F39C12'}]}>
+            <View style={[styles.badge, {backgroundColor: theme.couleurs.champBordure}]}>
               <Text style={styles.badgeTexte}>SIMULATION</Text>
             </View>
           ) : null}
@@ -80,6 +97,19 @@ export function Dashboard({
           ) : null}
         </View>
       </View>
+
+      {/* Chronomètre session */}
+      {estActif ? (
+        <View style={styles.chronoBox}>
+          <Text style={styles.chronoValeur}>{formaterDuree(dureeSecondes)}</Text>
+          <Text style={styles.chronoLibelle}>durée</Text>
+          <Text style={styles.chronoDistance}>
+            {distanceMetres >= 1000
+              ? `${(distanceMetres / 1000).toFixed(2)} km`
+              : `${Math.round(distanceMetres)} m`}
+          </Text>
+        </View>
+      ) : null}
 
       {erreurs.length > 0 ? (
         <View style={styles.erreursBox}>
@@ -97,18 +127,18 @@ export function Dashboard({
           <CarteMetrique
             titre="Latitude"
             valeur={latitude.toFixed(6)}
-            couleur="#3498DB"
+            couleur={theme.couleurs.violetAccent}
           />
           <CarteMetrique
             titre="Longitude"
             valeur={longitude.toFixed(6)}
-            couleur="#3498DB"
+            couleur={theme.couleurs.violetAccent}
           />
           <CarteMetrique
             titre="Altitude"
             valeur={altitude !== null ? altitude.toFixed(1) : 'N/A'}
             unite="m"
-            couleur="#3498DB"
+            couleur={theme.couleurs.violetAccent}
           />
         </View>
       ) : (
@@ -121,13 +151,13 @@ export function Dashboard({
           titre="Vitesse"
           valeur={vitesseMs !== null ? vitesseMs.toFixed(2) : '--'}
           unite="m/s"
-          couleur="#E74C3C"
+          couleur={theme.couleurs.erreur}
         />
         <CarteMetrique
           titre="Vitesse"
           valeur={vitesseKmh !== null ? vitesseKmh.toFixed(1) : '--'}
           unite="km/h"
-          couleur="#E74C3C"
+          couleur={theme.couleurs.erreur}
         />
       </View>
 
@@ -136,7 +166,7 @@ export function Dashboard({
         titre="Pas cette session"
         valeur={nombrePasSession !== null ? `${nombrePasSession}` : '--'}
         unite="pas"
-        couleur="#9B59B6"
+        couleur={theme.couleurs.violetAccent}
       />
 
       <Text style={styles.sectionTitre}>Accéléromètre</Text>
@@ -145,33 +175,46 @@ export function Dashboard({
           <CarteMetrique
             titre="X"
             valeur={accelerometre.x.toFixed(3)}
-            couleur="#F39C12"
+            couleur={theme.couleurs.primaire}
           />
           <CarteMetrique
             titre="Y"
             valeur={accelerometre.y.toFixed(3)}
-            couleur="#F39C12"
+            couleur={theme.couleurs.primaire}
           />
           <CarteMetrique
             titre="Z"
             valeur={accelerometre.z.toFixed(3)}
-            couleur="#F39C12"
+            couleur={theme.couleurs.primaire}
           />
         </View>
       ) : (
         <Text style={styles.nonDispo}>Non disponible</Text>
       )}
 
-      <Pressable
-        style={[
-          styles.bouton,
-          {backgroundColor: estActif ? '#E74C3C' : '#2ECC71'},
-        ]}
-        onPress={estActif ? onArreter : onDemarrer}>
-        <Text style={styles.boutonTexte}>
-          {estActif ? 'Arrêter le suivi' : 'Démarrer le suivi'}
-        </Text>
-      </Pressable>
+      {/* Boutons de contrôle */}
+      {!estActif ? (
+        <Pressable
+          style={[styles.bouton, {backgroundColor: theme.couleurs.boutonPrimaire}]}
+          onPress={onDemarrer}>
+          <Text style={styles.boutonTexte}>Démarrer le suivi</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.boutonsActifs}>
+          <Pressable
+            style={[styles.bouton, styles.boutonDemi, {backgroundColor: theme.couleurs.champFond, borderWidth: 2, borderColor: theme.couleurs.bordureTransparente}]}
+            onPress={onPauseReprendre}>
+            <Text style={[styles.boutonTexte, {color: theme.couleurs.texte}]}>
+              {estEnPause ? 'Reprendre' : 'Pause'}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.bouton, styles.boutonDemi, {backgroundColor: theme.couleurs.erreur}]}
+            onPress={onArreter}>
+            <Text style={styles.boutonTexte}>Arrêter</Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
@@ -179,16 +222,15 @@ export function Dashboard({
 const styles = StyleSheet.create({
   conteneur: {
     flex: 1,
-    padding: 16,
-    backgroundColor: '#1A1A2E',
+    padding: theme.espacement.md,
   },
   entete: {
-    marginBottom: 16,
+    marginBottom: theme.espacement.md,
   },
   titre: {
     fontSize: 28,
-    fontWeight: '700',
-    color: '#EAEAEA',
+    fontFamily: theme.polices.grasse,
+    color: theme.couleurs.texte,
     marginBottom: 8,
   },
   badgeRow: {
@@ -199,44 +241,76 @@ const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: theme.rayonBordure.sm,
   },
   badgeTexte: {
-    color: '#FFF',
+    fontFamily: theme.polices.reguliere,
+    color: theme.couleurs.texte,
     fontSize: 11,
-    fontWeight: '700',
     letterSpacing: 0.5,
   },
   trameTexte: {
-    color: '#888',
+    fontFamily: theme.polices.reguliere,
+    color: theme.couleurs.texteSecondaire,
     fontSize: 12,
     marginLeft: 4,
   },
-  sectionTitre: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#888',
+  chronoBox: {
+    alignItems: 'center',
+    backgroundColor: theme.couleurs.champFond,
+    borderRadius: theme.rayonBordure.md,
+    borderWidth: 2,
+    borderColor: theme.couleurs.bordureTransparente,
+    paddingVertical: theme.espacement.lg,
+    marginBottom: theme.espacement.md,
+  },
+  chronoValeur: {
+    fontFamily: theme.polices.grasse,
+    fontSize: 52,
+    color: theme.couleurs.texte,
+    letterSpacing: 2,
+  },
+  chronoLibelle: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 12,
+    color: theme.couleurs.texteSecondaire,
     textTransform: 'uppercase',
     letterSpacing: 1,
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 2,
+  },
+  chronoDistance: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 18,
+    color: theme.couleurs.primaire,
+    marginTop: theme.espacement.xs,
+  },
+  sectionTitre: {
+    fontSize: 13,
+    fontFamily: theme.polices.reguliere,
+    color: theme.couleurs.texteSecondaire,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: theme.espacement.md,
+    marginBottom: theme.espacement.xs,
   },
   grille: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: theme.espacement.xs,
   },
   carte: {
     flex: 1,
     minWidth: 100,
-    backgroundColor: '#16213E',
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: theme.couleurs.champFond,
+    borderRadius: theme.rayonBordure.sm,
+    padding: theme.espacement.sm,
     borderLeftWidth: 3,
+    borderColor: theme.couleurs.bordureTransparente,
   },
   carteTitre: {
     fontSize: 11,
-    color: '#888',
+    fontFamily: theme.polices.reguliere,
+    color: theme.couleurs.texteSecondaire,
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -248,41 +322,53 @@ const styles = StyleSheet.create({
   },
   carteValeur: {
     fontSize: 22,
-    fontWeight: '700',
-    color: '#EAEAEA',
+    fontFamily: theme.polices.grasse,
+    color: theme.couleurs.texte,
     fontVariant: ['tabular-nums'],
   },
   carteUnite: {
     fontSize: 12,
-    color: '#666',
+    fontFamily: theme.polices.reguliere,
+    color: theme.couleurs.texteSecondaire,
   },
   nonDispo: {
-    color: '#555',
+    fontFamily: theme.polices.reguliere,
+    color: theme.couleurs.placeholder,
     fontStyle: 'italic',
     paddingVertical: 8,
   },
   erreursBox: {
-    backgroundColor: '#2C1810',
-    borderRadius: 8,
+    backgroundColor: theme.couleurs.alerteAvertissementDebut,
+    borderRadius: theme.rayonBordure.sm,
     padding: 10,
     marginBottom: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#E74C3C',
+    borderLeftColor: theme.couleurs.erreur,
   },
   erreurTexte: {
-    color: '#E74C3C',
+    fontFamily: theme.polices.reguliere,
+    color: theme.couleurs.erreur,
     fontSize: 12,
     marginBottom: 2,
   },
+  boutonsActifs: {
+    flexDirection: 'row',
+    gap: theme.espacement.sm,
+    marginTop: theme.espacement.lg,
+  },
   bouton: {
-    marginTop: 24,
-    paddingVertical: 16,
-    borderRadius: 12,
+    marginTop: theme.espacement.lg,
+    paddingVertical: theme.espacement.md,
+    borderRadius: theme.rayonBordure.md,
     alignItems: 'center',
   },
+  boutonDemi: {
+    flex: 1,
+    marginTop: 0,
+  },
   boutonTexte: {
-    color: '#FFF',
+    fontFamily: theme.polices.grasse,
+    color: theme.couleurs.texteBoutonPrimaire,
     fontSize: 16,
-    fontWeight: '700',
   },
 });
