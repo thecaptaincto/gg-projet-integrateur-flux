@@ -3,7 +3,10 @@ import {StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native'
 import {SafeAreaView} from 'react-native-safe-area-context';
 import { utiliserAuth } from '../../contextes/ContexteAuth';
 import { ArrierePlanGradient } from '../../composants/ArrierePlanGradient';
-import { AlertePersonnalisee } from '../../composants/AlertePersonnalisee';
+import {
+  AlertePersonnalisee,
+  type TypeAlertePersonnalisee,
+} from '../../composants/AlertePersonnalisee';
 import type {NavigationProp, ParamListBase} from '@react-navigation/native';
 import {theme} from '../../styles/theme';
 import {validerEmail, validerMotDePasse} from '../../utils/validation';
@@ -29,7 +32,7 @@ type ErreursInscription = Partial<Record<ChampsInscription, string>>;
 // Structure de l'état de la modale d'alerte (succès ou erreur serveur)
 interface EtatAlerte {
   visible: boolean;
-  type: 'avertissement' | 'info' | 'confirmation';
+  type: TypeAlertePersonnalisee;
   titre: string;
   message: string;
 }

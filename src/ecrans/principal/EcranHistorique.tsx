@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useMemo, useState} from 'react';
 import {
   FlatList,
   StyleSheet,
@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
+import {useRoute} from '@react-navigation/native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {theme} from '../../styles/theme';
@@ -36,16 +37,55 @@ function formaterDate(isoString: string): string {
   });
 }
 
+type PeriodeFiltre = 'tout' | 'jour' | 'semaine' | 'mois';
+
+function estDansPeriode(dateISO: string, periode: Exclude<PeriodeFiltre, 'tout'>): boolean {
+  const date = new Date(dateISO);
+  const maintenant = new Date();
+  const debutJour = new Date(maintenant);
+  debutJour.setHours(0, 0, 0, 0);
+
+  if (periode === 'jour') {
+    return date >= debutJour;
+  }
+  if (periode === 'semaine') {
+    const debutSemaine = new Date(debutJour);
+    debutSemaine.setDate(debutJour.getDate() - debutJour.getDay());
+    return date >= debutSemaine;
+  }
+
+  const debutMois = new Date(maintenant.getFullYear(), maintenant.getMonth(), 1);
+  return date >= debutMois;
+}
+
 export const EcranHistorique = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const [entrainements, setEntrainements] = useState<EntrainementSauvegarde[]>([]);
   const [idASupprimer, setIdASupprimer] = useState<string | null>(null);
+  const periodeDepuisRoute = route.params?.periode as
+    | Exclude<PeriodeFiltre, 'tout'>
+    | undefined;
+  const [periode, setPeriode] = useState<PeriodeFiltre>(
+    periodeDepuisRoute ?? 'tout',
+  );
+
+  React.useEffect(() => {
+    setPeriode(periodeDepuisRoute ?? 'tout');
+  }, [periodeDepuisRoute]);
 
   useFocusEffect(
     useCallback(() => {
       chargerEntrainements().then(setEntrainements);
     }, []),
   );
+
+  const entrainementsAffiches = useMemo(() => {
+    if (periode === 'tout') {
+      return entrainements;
+    }
+    return entrainements.filter(e => estDansPeriode(e.dateISO, periode));
+  }, [entrainements, periode]);
 
   const handleSupprimer = async () => {
     if (!idASupprimer) {
@@ -56,17 +96,28 @@ export const EcranHistorique = () => {
     setIdASupprimer(null);
   };
 
+  const ouvrirDetails = (id: string) => {
+    navigation.navigate('DetailEntrainement', {id});
+  };
+
   const renderItem = ({item}: {item: EntrainementSauvegarde}) => (
     <View style={styles.carte}>
       <View style={styles.carteEntete}>
         <Text style={styles.carteNom} numberOfLines={1}>
           {item.nom}
         </Text>
-        <TouchableOpacity
-          style={styles.boutonSupprimer}
-          onPress={() => setIdASupprimer(item.id)}>
-          <Text style={styles.boutonSupprimerTexte}>✕</Text>
-        </TouchableOpacity>
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.boutonDetails}
+            onPress={() => ouvrirDetails(item.id)}>
+            <Text style={styles.boutonDetailsTexte}>Détails</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.boutonSupprimer}
+            onPress={() => setIdASupprimer(item.id)}>
+            <Text style={styles.boutonSupprimerTexte}>✕</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <Text style={styles.carteDate}>{formaterDate(item.dateISO)}</Text>
       <View style={styles.carteStats}>
@@ -111,16 +162,43 @@ export const EcranHistorique = () => {
           <Text style={styles.titre}>Historique</Text>
         </View>
 
-        {entrainements.length === 0 ? (
+        <View style={styles.filtres}>
+          {(
+            [
+              {key: 'tout', label: 'Tout'},
+              {key: 'jour', label: "Aujourd'hui"},
+              {key: 'semaine', label: 'Semaine'},
+              {key: 'mois', label: 'Mois'},
+            ] as const
+          ).map(item => {
+            const actif = periode === item.key;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                style={[styles.filtrePuce, actif && styles.filtrePuceActif]}
+                onPress={() => setPeriode(item.key)}>
+                <Text style={[styles.filtreTexte, actif && styles.filtreTexteActif]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {entrainementsAffiches.length === 0 ? (
           <View style={styles.vide}>
-            <Text style={styles.videTexte}>Aucun entraînement sauvegardé.</Text>
+            <Text style={styles.videTexte}>
+              {periode === 'tout'
+                ? 'Aucun entraînement sauvegardé.'
+                : 'Aucun entraînement pour cette période.'}
+            </Text>
             <Text style={styles.videInstructions}>
               Lance un suivi depuis l'onglet Enregistrer.
             </Text>
           </View>
         ) : (
           <FlatList
-            data={entrainements}
+            data={entrainementsAffiches}
             keyExtractor={item => item.id}
             renderItem={renderItem}
             contentContainerStyle={styles.liste}
@@ -170,6 +248,33 @@ const styles = StyleSheet.create({
     fontSize: 26,
     color: theme.couleurs.texte,
   },
+  filtres: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.espacement.sm,
+    paddingHorizontal: theme.espacement.lg,
+    paddingBottom: theme.espacement.md,
+  },
+  filtrePuce: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(253,226,255,0.25)',
+    backgroundColor: 'rgba(253,226,255,0.06)',
+  },
+  filtrePuceActif: {
+    backgroundColor: theme.couleurs.violetAccent,
+    borderColor: 'rgba(253,226,255,0.15)',
+  },
+  filtreTexte: {
+    fontFamily: theme.polices.reguliere,
+    color: theme.couleurs.texte,
+    fontSize: 12,
+  },
+  filtreTexteActif: {
+    color: theme.couleurs.texte,
+  },
   liste: {
     paddingHorizontal: theme.espacement.lg,
     paddingBottom: theme.espacement.xl,
@@ -194,6 +299,24 @@ const styles = StyleSheet.create({
     color: theme.couleurs.texte,
     flex: 1,
     marginRight: theme.espacement.sm,
+  },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.espacement.sm,
+  },
+  boutonDetails: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(253,226,255,0.25)',
+    backgroundColor: 'rgba(253,226,255,0.08)',
+  },
+  boutonDetailsTexte: {
+    fontFamily: theme.polices.reguliere,
+    color: theme.couleurs.texte,
+    fontSize: 12,
   },
   boutonSupprimer: {
     width: 28,

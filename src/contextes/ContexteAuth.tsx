@@ -11,6 +11,7 @@ import {
 // pour tous les composants enfants abonnés au contexte d'authentification
 interface ContexteAuthType {
   utilisateur: FirebaseAuthTypes.User | null;
+  initialisation: boolean;
   chargement: boolean;
   premierLancement: boolean;
   inscrire: (email: string, motDePasse: string, nom: string) => Promise<void>;
@@ -20,6 +21,12 @@ interface ContexteAuthType {
   reinitialiserMotDePasse: (email: string) => Promise<void>;
   completerPremierLancement: () => Promise<void>;
   genererCodeAcces: () => Promise<string>;
+  codeAccesActif: boolean;
+  codeAccesVerifie: boolean;
+  activerCodeAcces: (actif: boolean) => Promise<void>;
+  obtenirCodeAcces: () => Promise<string | null>;
+  regenererCodeAcces: () => Promise<string>;
+  verifierCodeAcces: (code: string) => Promise<void>;
 }
 
 // Contexte initialisé à undefined : le hook utiliserAuth() lèvera une erreur
@@ -30,17 +37,25 @@ const ContexteAuth = createContext<ContexteAuthType | undefined>(undefined);
 // et expose l'état de l'utilisateur à l'ensemble de l'arbre de composants.
 export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
   const [utilisateur, setUtilisateur] = useState<FirebaseAuthTypes.User | null>(null);
-  // `chargement` démarre à true pour bloquer le rendu de NavigateurApp
-  // jusqu'à ce que Firebase ait vérifié la session persistée
-  const [chargement, setChargement] = useState(true);
+  // `initialisation` bloque le rendu de NavigateurApp jusqu'à ce que Firebase
+  // ait vérifié la session persistée ET que la sécurité locale soit chargée.
+  const [initialisation, setInitialisation] = useState(true);
+  // `chargement` est réservé aux actions (connexion/inscription/etc.) pour désactiver les boutons.
+  const [chargement, setChargement] = useState(false);
   const [premierLancement, setPremierLancement] = useState(true);
+  const [codeAccesActif, setCodeAccesActif] = useState(false);
+  const [codeAccesVerifie, setCodeAccesVerifie] = useState(false);
+  const codeAccesRef = React.useRef<string | null>(null);
+  const [authPret, setAuthPret] = useState(false);
+  const [securitePrete, setSecuritePrete] = useState(false);
 
   useEffect(() => {
     // Abonnement à l'état d'authentification Firebase : mis à jour en temps réel
     // lors de la connexion, déconnexion ou expiration de session
     const desabonner = auth().onAuthStateChanged((user) => {
       setUtilisateur(user);
-      setChargement(false);
+      setCodeAccesVerifie(false);
+      setAuthPret(true);
     });
 
     // La clé 'premierLancement' est absente au tout premier démarrage (null),
@@ -50,11 +65,62 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
       setPremierLancement(valeur === null);
     };
 
-    verifierPremierLancement();
+    const chargerSecurite = async () => {
+      try {
+        const [actif, codeLegacy] = await Promise.all([
+          AsyncStorage.getItem('codeAccesActif'),
+          // rétro-compat : l'app stockait déjà 'codeAcces'
+          AsyncStorage.getItem('codeAcces'),
+        ]);
+        setCodeAccesActif(actif === 'true');
+        codeAccesRef.current = codeLegacy ?? null;
+      } catch {
+        // ignore
+      } finally {
+        setSecuritePrete(true);
+      }
+    };
+
+    void verifierPremierLancement();
+    void chargerSecurite();
 
     // Nettoyage : désabonnement de l'écouteur Firebase quand le composant est démonté
     return desabonner;
   }, []);
+
+  useEffect(() => {
+    setInitialisation(!(authPret && securitePrete));
+  }, [authPret, securitePrete]);
+
+  useEffect(() => {
+    if (!utilisateur) {
+      setCodeAccesVerifie(false);
+      return;
+    }
+    if (!codeAccesActif) {
+      setCodeAccesVerifie(true);
+    }
+  }, [codeAccesActif, utilisateur]);
+
+  const obtenirCodeAcces = async (): Promise<string | null> => {
+    if (codeAccesRef.current) {
+      return codeAccesRef.current;
+    }
+    try {
+      const code = await AsyncStorage.getItem('codeAcces');
+      codeAccesRef.current = code;
+      return code;
+    } catch {
+      return null;
+    }
+  };
+
+  const genererNouveauCodeAcces = async (): Promise<string> => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    await AsyncStorage.setItem('codeAcces', code);
+    codeAccesRef.current = code;
+    return code;
+  };
 
   // Traduit les codes d'erreur Firebase en messages lisibles en français.
   // Le paramètre `contexte` permet d'adapter le message selon l'opération en cours,
@@ -233,6 +299,7 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
       // Réinitialiser le premier lancement lors de la déconnexion
       await AsyncStorage.removeItem('premierLancement');
       setPremierLancement(true);
+      setCodeAccesVerifie(false);
     } catch (erreur: any) {
       throw { code: 'error', message: 'Erreur lors de la déconnexion', firebaseCode: erreur?.code };
     }
@@ -253,13 +320,51 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
   // Math.floor(100000 + Math.random() * 900000) garantit un résultat entre 100000 et 999999.
   const genererCodeAcces = async (): Promise<string> => {
     try {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      await AsyncStorage.setItem('codeAcces', code);
-      return code;
+      return await genererNouveauCodeAcces();
     } catch (erreur) {
       console.error('Erreur lors de la génération du code:', erreur);
       throw erreur;
     }
+  };
+
+  const regenererCodeAcces = async (): Promise<string> => {
+    try {
+      return await genererNouveauCodeAcces();
+    } catch (erreur) {
+      throw erreur;
+    }
+  };
+
+  const activerCodeAcces = async (actif: boolean) => {
+    setCodeAccesActif(actif);
+    setCodeAccesVerifie(!actif);
+    try {
+      await AsyncStorage.setItem('codeAccesActif', actif ? 'true' : 'false');
+      if (actif) {
+        const code = await obtenirCodeAcces();
+        if (!code) {
+          await genererNouveauCodeAcces();
+        }
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const verifierCodeAcces = async (code: string) => {
+    const codeNettoye = code.trim();
+    const attendu = await obtenirCodeAcces();
+    if (!codeAccesActif) {
+      setCodeAccesVerifie(true);
+      return;
+    }
+    if (!attendu) {
+      throw new Error("Aucun code d'accès n'est défini.");
+    }
+    if (codeNettoye !== attendu) {
+      throw new Error("Code d'accès incorrect.");
+    }
+    setCodeAccesVerifie(true);
   };
 
   // Rendu du fournisseur : toutes les fonctions et données du contexte sont passées
@@ -268,6 +373,7 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
     <ContexteAuth.Provider
       value={{
         utilisateur,
+        initialisation,
         chargement,
         premierLancement,
         inscrire,
@@ -277,6 +383,12 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
         reinitialiserMotDePasse,
         completerPremierLancement,
         genererCodeAcces,
+        codeAccesActif,
+        codeAccesVerifie,
+        activerCodeAcces,
+        obtenirCodeAcces,
+        regenererCodeAcces,
+        verifierCodeAcces,
       }}
     >
       {children}

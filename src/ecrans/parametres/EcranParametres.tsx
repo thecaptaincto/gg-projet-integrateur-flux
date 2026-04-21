@@ -9,21 +9,28 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import { ArrierePlanGradient } from '../../composants/ArrierePlanGradient';
-import {AlertePersonnalisee} from '../../composants/AlertePersonnalisee';
+import {
+  AlertePersonnalisee,
+  type TypeAlertePersonnalisee,
+} from '../../composants/AlertePersonnalisee';
 import { theme } from '../../styles/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '@react-native-firebase/auth';
+import {utiliserAuth} from '../../contextes/ContexteAuth';
 
 interface PropsEcranParametres {
   navigation: any;
 }
 
 export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) => {
+  const {codeAccesActif, activerCodeAcces, obtenirCodeAcces, regenererCodeAcces} =
+    utiliserAuth();
   const [sectionMonCompteOuverte, setSectionMonCompteOuverte] = useState(true);
   const [sectionConfidentialiteOuverte, setSectionConfidentialiteOuverte] =
     useState(true);
   const [sectionNotificationsOuverte, setSectionNotificationsOuverte] =
     useState(true);
+  const [sectionSecuriteOuverte, setSectionSecuriteOuverte] = useState(true);
 
   const [profilPublic, setProfilPublic] = useState(true);
   const [partagerStats, setPartagerStats] = useState(true);
@@ -32,7 +39,7 @@ export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) 
 
   const [alerte, setAlerte] = useState<{
     visible: boolean;
-    type: 'avertissement' | 'info' | 'confirmation';
+    type: TypeAlertePersonnalisee;
     titre: string;
     message: string;
   }>({visible: false, type: 'info', titre: '', message: ''});
@@ -103,7 +110,7 @@ export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) 
   };
 
   const afficherAlerte = (
-    type: 'avertissement' | 'info' | 'confirmation',
+    type: TypeAlertePersonnalisee,
     titre: string,
     message: string,
   ) => setAlerte({visible: true, type, titre, message});
@@ -135,6 +142,28 @@ export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) 
         'Erreur',
         "Impossible d'envoyer le courriel de réinitialisation.",
       );
+    }
+  };
+
+  const gererAfficherCodeAcces = async () => {
+    const code = await obtenirCodeAcces();
+    if (!code) {
+      afficherAlerte(
+        'attention',
+        "Code d'accès",
+        "Aucun code n'est défini. Active le code d'accès pour en générer un.",
+      );
+      return;
+    }
+    afficherAlerte('info', "Code d'accès", `Ton code : ${code}`);
+  };
+
+  const gererRegenererCodeAcces = async () => {
+    try {
+      const code = await regenererCodeAcces();
+      afficherAlerte('info', "Nouveau code d'accès", `Ton nouveau code : ${code}`);
+    } catch {
+      afficherAlerte('erreur', 'Erreur', "Impossible de générer un nouveau code.");
     }
   };
 
@@ -273,6 +302,50 @@ export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) 
               </View>
             ) : null}
           </View>
+
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.enteteSection}
+              onPress={() => setSectionSecuriteOuverte(o => !o)}>
+              <Text style={styles.titreSection}>Sécurité</Text>
+              <Text style={styles.fleche}>
+                {sectionSecuriteOuverte ? '˄' : '˅'}
+              </Text>
+            </TouchableOpacity>
+
+            {sectionSecuriteOuverte ? (
+              <View style={styles.contenuSection}>
+                <View style={styles.ligneSwitch}>
+                  <Text style={styles.texteItem}>Activer un code d'accès</Text>
+                  <Switch
+                    value={codeAccesActif}
+                    onValueChange={val => void activerCodeAcces(val)}
+                    trackColor={{
+                      false: 'rgba(253, 226, 255, 0.25)',
+                      true: theme.couleurs.violetAccent,
+                    }}
+                    thumbColor={theme.couleurs.primaire}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={styles.boutonAction}
+                  onPress={() => void gererAfficherCodeAcces()}>
+                  <Text style={styles.texteBoutonAction}>
+                    Afficher le code d'accès
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.boutonAction, styles.boutonActionSecondaire]}
+                  onPress={() => void gererRegenererCodeAcces()}>
+                  <Text style={styles.texteBoutonAction}>
+                    Régénérer le code
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+          </View>
         </ScrollView>
       </SafeAreaView>
 
@@ -377,6 +450,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  boutonActionSecondaire: {
+    backgroundColor: 'rgba(253, 226, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(253, 226, 255, 0.25)',
   },
   texteBoutonAction: {
     fontFamily: theme.polices.reguliere,

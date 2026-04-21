@@ -13,6 +13,9 @@ import {EcranNotifications} from '../ecrans/principal/EcranNotifications';
 import {EcranProfil} from '../ecrans/principal/EcranProfil';
 import {EcranSuiviMouvement} from '../ecrans/principal/EcranSuiviMouvement';
 import {EcranHistorique} from '../ecrans/principal/EcranHistorique';
+import {EcranDetailEntrainement} from '../ecrans/principal/EcranDetailEntrainement';
+import {EcranParametres} from '../ecrans/parametres/EcranParametres';
+import {EcranCodeAcces} from '../ecrans/authentification/EcranCodeAcces';
 import {theme} from '../styles/theme';
 import {Text, View, StyleSheet, TouchableOpacity} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -23,8 +26,11 @@ type TypesPilePrincipale = {
   Inscription: undefined;
   Connexion: undefined;
   Principal: undefined;
-  SuiviMouvement: undefined;
-  Historique: undefined;
+  SuiviMouvement: {preset?: string; simulation?: boolean} | undefined;
+  Historique: {periode?: 'jour' | 'semaine' | 'mois'} | undefined;
+  DetailEntrainement: {id: string};
+  Parametres: undefined;
+  CodeAcces: undefined;
 };
 
 type TypesOngletsPrincipaux = {
@@ -145,15 +151,26 @@ const OngletsPrincipaux = () => {
 //   2. Premier lancement (jamais ouvert) → route 'Accueil'  (écran de bienvenue)
 //   3. Déjà venu mais déconnecté        → route 'Connexion' (formulaire direct)
 export const NavigateurApp = () => {
-  const {utilisateur, chargement, premierLancement} = utiliserAuth();
+  const {
+    utilisateur,
+    initialisation,
+    premierLancement,
+    codeAccesActif,
+    codeAccesVerifie,
+  } = utiliserAuth();
 
   // On attend que Firebase confirme l'état de session avant d'afficher quoi que ce soit
-  if (chargement) {
+  if (initialisation) {
     return null;
   }
 
-  const routeInitiale =
-    utilisateur ? 'Principal' : premierLancement ? 'Accueil' : 'Connexion';
+  const routeInitiale = utilisateur
+    ? codeAccesActif && !codeAccesVerifie
+      ? 'CodeAcces'
+      : 'Principal'
+    : premierLancement
+      ? 'Accueil'
+      : 'Connexion';
 
   return (
     <NavigationContainer>
@@ -175,6 +192,7 @@ export const NavigateurApp = () => {
           </>
         ) : (
           <>
+            <Pile.Screen name="CodeAcces" component={EcranCodeAcces} />
             <Pile.Screen name="Principal" component={OngletsPrincipaux} />
             <Pile.Screen
               name="SuiviMouvement"
@@ -183,6 +201,14 @@ export const NavigateurApp = () => {
             <Pile.Screen
               name="Historique"
               component={EcranHistorique}
+            />
+            <Pile.Screen
+              name="DetailEntrainement"
+              component={EcranDetailEntrainement}
+            />
+            <Pile.Screen
+              name="Parametres"
+              component={EcranParametres}
             />
           </>
         )}

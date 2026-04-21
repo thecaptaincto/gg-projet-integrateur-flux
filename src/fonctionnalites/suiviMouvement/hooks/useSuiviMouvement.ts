@@ -17,7 +17,6 @@ import {
 import {SourceCapteursSimules} from '../sensors/simulatedSensors';
 import {
   calculerDistanceMetres,
-  extraireVitesseMs,
   msVersKmh,
 } from '../utils/calculations';
 
@@ -41,6 +40,10 @@ const ETAT_INITIAL: EtatSuivi = {
   dureeSecondes: 0,
   distanceMetres: 0,
 };
+
+// Filtre anti-absurde : vitesse maximale plausible (m/s) pour la course.
+// 8 m/s ≈ 28.8 km/h (déjà très rapide). Au-delà, on traite ça comme un saut GPS / simulation trop "grande".
+const VITESSE_MAX_PLAUSIBLE_MS = 8;
 
 export function useSuiviMouvement(options: OptionsHook = {}) {
   const {config = CONFIG_DEFAUT, simulation = false} = options;
@@ -89,24 +92,68 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
           : null;
 
       // Distance cumulée
-      if (position && positionPrecedenteRef.current) {
-        const delta = calculerDistanceMetres(
-          positionPrecedenteRef.current.latitude,
-          positionPrecedenteRef.current.longitude,
-          position.latitude,
-          position.longitude,
-        );
-        distanceTotaleRef.current += delta;
-      }
-
-      const vitesseMs = extraireVitesseMs(
-        position,
-        positionPrecedenteRef.current,
-        erreurs,
-      );
-
+      let vitesseMs: number | null = null;
       if (position) {
-        positionPrecedenteRef.current = position;
+        const precedente = positionPrecedenteRef.current;
+        const vitesseCapteur =
+          position.speed !== null && position.speed >= 0 ? position.speed : null;
+
+        if (precedente) {
+          const dt = (position.timestamp - precedente.timestamp) / 1000;
+          if (dt > 0) {
+            const deltaHaversine = calculerDistanceMetres(
+              precedente.latitude,
+              precedente.longitude,
+              position.latitude,
+              position.longitude,
+            );
+            const vitesseHaversine = deltaHaversine / dt;
+
+            const vitesseHaversineOk = vitesseHaversine <= VITESSE_MAX_PLAUSIBLE_MS;
+            const vitesseCapteurOk =
+              vitesseCapteur !== null && vitesseCapteur <= VITESSE_MAX_PLAUSIBLE_MS;
+
+            if (vitesseHaversineOk) {
+              distanceTotaleRef.current += deltaHaversine;
+              vitesseMs = vitesseCapteurOk && vitesseCapteur > 0 ? vitesseCapteur : vitesseHaversine;
+            } else if (vitesseCapteurOk) {
+              // Coordonnées trop éloignées (GPS jump / simulation). On ajoute une distance basée sur la vitesse capteur.
+              distanceTotaleRef.current += vitesseCapteur * dt;
+              vitesseMs = vitesseCapteur;
+              erreurs.push(
+                `Saut GPS filtré (vitesse calculée ${(msVersKmh(vitesseHaversine)).toFixed(1)} km/h)`,
+              );
+            } else {
+              // Aucune info fiable : on ignore ce delta.
+              erreurs.push(
+                `Point ignoré (vitesse calculée ${(msVersKmh(vitesseHaversine)).toFixed(1)} km/h)`,
+              );
+              vitesseMs = null;
+            }
+
+            // Garder une référence "raisonnable" : on met à jour la position précédente,
+            // sauf si le saut est vraiment énorme (évite d'empiler des deltas absurdes).
+            const sautEnorme =
+              deltaHaversine > 250 || vitesseHaversine > VITESSE_MAX_PLAUSIBLE_MS * 3;
+            if (!sautEnorme) {
+              positionPrecedenteRef.current = position;
+            }
+          } else {
+            // Timestamp incohérent : conserver la vitesse capteur si dispo.
+            if (
+              vitesseCapteur !== null &&
+              vitesseCapteur <= VITESSE_MAX_PLAUSIBLE_MS
+            ) {
+              vitesseMs = vitesseCapteur;
+            }
+          }
+        } else {
+          // Première position connue : seulement vitesse capteur si dispo
+          if (vitesseCapteur !== null && vitesseCapteur <= VITESSE_MAX_PLAUSIBLE_MS) {
+            vitesseMs = vitesseCapteur;
+          }
+          positionPrecedenteRef.current = position;
+        }
       }
 
       const dureeSecondes = Math.round(dureeSecondesCourantes());

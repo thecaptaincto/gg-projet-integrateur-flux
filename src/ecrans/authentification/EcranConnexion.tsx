@@ -3,7 +3,10 @@ import {StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native'
 import {SafeAreaView} from 'react-native-safe-area-context';
 import { utiliserAuth } from '../../contextes/ContexteAuth';
 import { ArrierePlanGradient } from '../../composants/ArrierePlanGradient';
-import { AlertePersonnalisee } from '../../composants/AlertePersonnalisee';
+import {
+  AlertePersonnalisee,
+  type TypeAlertePersonnalisee,
+} from '../../composants/AlertePersonnalisee';
 import type {NavigationProp, ParamListBase} from '@react-navigation/native';
 import {theme} from '../../styles/theme';
 import {validerEmail} from '../../utils/validation';
@@ -26,7 +29,7 @@ type ErreursConnexion = Partial<Record<keyof ChampsTouchesConnexion, string>>;
 // Structure de la modale d'alerte affichée après une réponse du serveur
 interface EtatAlerte {
   visible: boolean;
-  type: 'avertissement' | 'info' | 'confirmation';
+  type: TypeAlertePersonnalisee;
   titre: string;
   message: string;
 }
@@ -248,6 +251,18 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
             </Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.boutonSecondaire}
+            onPress={() =>
+              afficherAlerte(
+                'info',
+                'Connexion Google',
+                "Pour activer la vraie connexion Google, il faut configurer Google Sign-In (SHA-1/SHA-256) dans Firebase et ajouter la dépendance native. Dis-moi quand tu es prêt et je l’implémente proprement sans casser Android/iOS.",
+              )
+            }>
+            <Text style={styles.texteBoutonSecondaire}>Continuer avec Google</Text>
+          </TouchableOpacity>
+
           {/* Lien vers l'inscription pour les nouveaux utilisateurs */}
           <TouchableOpacity onPress={() => navigation.navigate('Inscription')}>
             <Text style={styles.lien}>Pas encore de compte? Inscrivez-vous</Text>
@@ -334,6 +349,16 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  boutonSecondaire: {
+    marginTop: 12,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(253, 226, 255, 0.3)',
+    backgroundColor: 'rgba(253, 226, 255, 0.08)',
+  },
   boutonDesactive: {
     backgroundColor: '#666',
     opacity: 0.6,
@@ -341,6 +366,12 @@ const styles = StyleSheet.create({
   texteBouton: {
     color: '#fff',
     fontSize: 18,
+    fontWeight: '600',
+    fontFamily: 'LilitaOne-Regular',
+  },
+  texteBoutonSecondaire: {
+    color: theme.couleurs.texteClair,
+    fontSize: 16,
     fontWeight: '600',
     fontFamily: 'LilitaOne-Regular',
   },

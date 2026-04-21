@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {Dashboard, useSuiviMouvement} from '../../fonctionnalites/suiviMouvement';
@@ -26,7 +26,11 @@ function formaterDureeResume(s: number): string {
 
 export const EcranSuiviMouvement = () => {
   const navigation = useNavigation<any>();
-  const [modeSimulation] = useState(true);
+  const route = useRoute<any>();
+  const preset = (route.params?.preset as string | undefined) ?? undefined;
+  const [modeSimulation] = useState<boolean>(
+    (route.params?.simulation as boolean | undefined) ?? true,
+  );
   const [nomEntrainement, setNomEntrainement] = useState('');
   const inputRef = useRef<TextInput>(null);
 
@@ -48,12 +52,11 @@ export const EcranSuiviMouvement = () => {
         day: 'numeric',
         month: 'long',
       });
-      setNomEntrainement(
-        dateStr.charAt(0).toUpperCase() + dateStr.slice(1),
-      );
+      const base = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+      setNomEntrainement(preset ? `${preset} — ${base}` : base);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [resumeSession]);
+  }, [preset, resumeSession]);
 
   const handleSauvegarder = async () => {
     if (!resumeSession) {

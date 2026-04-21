@@ -105,6 +105,12 @@ export const EcranPrincipal = () => {
           <View style={styles.section}>
             <View style={styles.enteteSection}>
               <Text style={styles.titreSection}>Statistiques</Text>
+              {entrainements.length > 0 ? (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Historique', {periode})}>
+                  <Text style={styles.lienHistorique}>Détails</Text>
+                </TouchableOpacity>
+              ) : null}
               <View style={styles.toggleRow}>
                 {(['jour', 'semaine', 'mois'] as PeriodeStats[]).map(p => (
                   <TouchableOpacity
@@ -169,7 +175,13 @@ export const EcranPrincipal = () => {
               </Text>
             ) : (
               recents.map(entrainement => (
-                <View key={entrainement.id} style={styles.carteActivite}>
+                <TouchableOpacity
+                  key={entrainement.id}
+                  style={styles.carteActivite}
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    navigation.navigate('DetailEntrainement', {id: entrainement.id})
+                  }>
                   <View style={styles.iconeActivite}>
                     <Text style={styles.texteIconeActivite}>🏃</Text>
                   </View>
@@ -198,7 +210,7 @@ export const EcranPrincipal = () => {
                       </Text>
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))
             )}
           </View>
