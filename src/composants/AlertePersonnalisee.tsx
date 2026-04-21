@@ -10,7 +10,8 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import {theme} from '../styles/theme';
 
-export type TypeAlertePersonnalisee = 'confirmation' | 'avertissement' | 'info';
+export type TypeAlerteSeverite = 'info' | 'attention' | 'avertissement' | 'erreur';
+export type TypeAlertePersonnalisee = 'confirmation' | TypeAlerteSeverite;
 
 interface PropsAlertePersonnalisee {
   visible: boolean;
@@ -24,10 +25,12 @@ interface PropsAlertePersonnalisee {
 }
 
 // Remplacement de l'Alert natif de React Native par une modale stylisée.
-// Supporte trois types sémantiques qui changent automatiquement les couleurs et l'icône :
-//   - 'confirmation' : deux boutons (Annuler / Confirmer) pour les actions irréversibles
-//   - 'avertissement': un seul bouton OK sur fond rouge pour signaler une erreur
-//   - 'info'         : un seul bouton OK sur fond violet pour les messages neutres
+// Supporte plusieurs types sémantiques qui changent automatiquement les couleurs et l'icône :
+//   - 'confirmation'  : deux boutons (Annuler / Confirmer) pour les actions irréversibles
+//   - 'attention'     : validation / champs manquants
+//   - 'avertissement' : avertissement non bloquant
+//   - 'erreur'        : échec / erreur serveur
+//   - 'info'          : message neutre
 export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
   visible,
   type,
@@ -71,6 +74,16 @@ export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
           icone: '✓',
           couleurAction: theme.couleurs.violetAccent,
         };
+      case 'attention':
+        return {
+          couleursGradient: [
+            theme.couleurs.alerteAttentionDebut,
+            theme.couleurs.alerteAttentionFin,
+          ],
+          couleurBordure: theme.couleurs.alerteAttentionBordure,
+          icone: '!',
+          couleurAction: theme.couleurs.alerteAttentionBordure,
+        };
       case 'avertissement':
         return {
           couleursGradient: [
@@ -80,6 +93,16 @@ export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
           couleurBordure: theme.couleurs.alerteAvertissementBordure,
           icone: '⚠',
           couleurAction: theme.couleurs.alerteAvertissementBordure,
+        };
+      case 'erreur':
+        return {
+          couleursGradient: [
+            theme.couleurs.alerteErreurDebut,
+            theme.couleurs.alerteErreurFin,
+          ],
+          couleurBordure: theme.couleurs.alerteErreurBordure,
+          icone: '✖',
+          couleurAction: theme.couleurs.alerteErreurBordure,
         };
       case 'info':
       default:
@@ -104,7 +127,7 @@ export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
       return;
     }
 
-    // Pour info/avertissement, un tap en dehors revient à "OK" si fourni.
+    // Pour info/attention/avertissement/erreur, un tap en dehors revient à "OK" si fourni.
     onConfirmer?.();
   }, [onAnnuler, onConfirmer, type]);
 

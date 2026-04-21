@@ -6,7 +6,8 @@ import { ArrierePlanGradient } from '../../composants/ArrierePlanGradient';
 import { AlertePersonnalisee } from '../../composants/AlertePersonnalisee';
 import type {NavigationProp, ParamListBase} from '@react-navigation/native';
 import {theme} from '../../styles/theme';
-import {validerEmail, validerMotDePasse} from '../../utils/validation';
+import {validerEmail} from '../../utils/validation';
+import {estMotDePasseValideConnexion} from '../../utils/validationFormulaire';
 
 // Props reçues par le composant via React Navigation
 interface PropsEcranConnexion {
@@ -69,9 +70,8 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
 
     if (!motDePasse) {
       prochainesErreurs.motDePasse = 'Veuillez entrer votre mot de passe.';
-    } else if (!validerMotDePasse(motDePasse)) {
-      prochainesErreurs.motDePasse =
-        'Minimum 8 caractères, une majuscule et un chiffre.';
+    } else if (!estMotDePasseValideConnexion(motDePasse)) {
+      prochainesErreurs.motDePasse = 'Minimum 6 caractères.';
     }
 
     return prochainesErreurs;
@@ -107,16 +107,21 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
   const gererConnexion = async () => {
     setSoumissionTentee(true);
     if (!formulaireValide) {
+      afficherAlerte(
+        'attention',
+        'Attention',
+        'Veuillez corriger les champs en rouge avant de continuer.',
+      );
       return;
     }
 
     try {
-      await seConnecter(email, motDePasse);
+      await seConnecter(email.trim(), motDePasse);
     } catch (erreur: unknown) {
       const message =
         estObjet(erreur) ? obtenirChaine(erreur.message) : undefined;
       afficherAlerte(
-        'avertissement',
+        'erreur',
         'Erreur de connexion',
         message ?? 'Une erreur est survenue.',
       );
@@ -130,12 +135,18 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
     setChampsTouches(etat => ({...etat, email: true}));
     setSoumissionTentee(true);
 
-    if (!email.trim() || !validerEmail(email)) {
+    const courrielNettoye = email.trim();
+    if (!courrielNettoye || !validerEmail(courrielNettoye)) {
+      afficherAlerte(
+        'attention',
+        'Attention',
+        'Veuillez entrer une adresse courriel valide.',
+      );
       return;
     }
 
     try {
-      await reinitialiserMotDePasse(email);
+      await reinitialiserMotDePasse(courrielNettoye);
       afficherAlerte(
         'info',
         'Courriel envoyé',
@@ -151,7 +162,7 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
         return;
       }
 
-      afficherAlerte('avertissement', 'Erreur', message ?? 'Une erreur est survenue.');
+      afficherAlerte('erreur', 'Erreur', message ?? 'Une erreur est survenue.');
     }
   };
 
@@ -230,7 +241,7 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
               (!formulaireValide || chargement) && styles.boutonDesactive,
             ]}
             onPress={gererConnexion}
-            disabled={chargement}
+            disabled={!formulaireValide || chargement}
           >
             <Text style={styles.texteBouton}>
               {chargement ? 'Connexion...' : 'Se connecter'}

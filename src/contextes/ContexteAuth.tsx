@@ -1,7 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { estMotDePasseValideInscription } from '../utils/validationFormulaire';
+import {
+  estCourrielValide,
+  estMotDePasseValideConnexion,
+  estMotDePasseValideInscription,
+} from '../utils/validationFormulaire';
 
 // Contrat du contexte : liste exhaustive des données et actions disponibles
 // pour tous les composants enfants abonnés au contexte d'authentification
@@ -94,23 +98,29 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
     try {
       setChargement(true);
 
+      const courrielNettoye = email.trim().toLowerCase();
+      const nomNettoye = nom.trim();
+
       // Validation
-      if (!email.includes('@')) {
+      if (!estCourrielValide(courrielNettoye)) {
         throw new Error('Adresse courriel invalide');
       }
       if (!estMotDePasseValideInscription(motDePasse)) {
         throw new Error('Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre');
       }
-      if (nom.trim().length < 2) {
+      if (nomNettoye.length < 2) {
         throw new Error('Le nom doit contenir au moins 2 caractères');
       }
 
       // Créer l'utilisateur
-      const credential = await auth().createUserWithEmailAndPassword(email, motDePasse);
+      const credential = await auth().createUserWithEmailAndPassword(
+        courrielNettoye,
+        motDePasse,
+      );
       
       // Mettre à jour le profil
       await credential.user.updateProfile({
-        displayName: nom,
+        displayName: nomNettoye,
       });
 
       // Envoyer email de vérification
@@ -118,7 +128,7 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
 
       throw {
         code: 'success',
-        message: `Inscription réussie !\n\nUn email de vérification a été envoyé à ${email}. Veuillez vérifier votre boîte de réception.`,
+        message: `Inscription réussie !\n\nUn email de vérification a été envoyé à ${courrielNettoye}. Veuillez vérifier votre boîte de réception.`,
       };
     } catch (erreur: any) {
       if (erreur.code === 'success') {
@@ -129,7 +139,7 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
         ? obtenirMessageErreur(erreur.code, 'inscription')
         : erreur.message || 'Erreur lors de l\'inscription';
       
-      throw { code: 'error', message };
+      throw { code: 'error', message, firebaseCode: erreur.code };
     } finally {
       setChargement(false);
     }
@@ -141,17 +151,28 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
     try {
       setChargement(true);
 
-      if (!email || !motDePasse) {
+      const courrielNettoye = email.trim().toLowerCase();
+      const motDePasseNettoye = motDePasse;
+
+      if (!courrielNettoye || !motDePasseNettoye) {
         throw new Error('Veuillez remplir tous les champs');
       }
+      if (!estCourrielValide(courrielNettoye)) {
+        throw new Error('Adresse courriel invalide');
+      }
+      // Ne pas imposer les règles "inscription" ici : Firebase accepte des mots
+      // de passe plus faibles (min 6) et l'utilisateur peut avoir un compte existant.
+      if (!estMotDePasseValideConnexion(motDePasseNettoye)) {
+        throw new Error('Le mot de passe doit contenir au moins 6 caractères');
+      }
 
-      await auth().signInWithEmailAndPassword(email, motDePasse);
+      await auth().signInWithEmailAndPassword(courrielNettoye, motDePasseNettoye);
     } catch (erreur: any) {
       const message = erreur.code
         ? obtenirMessageErreur(erreur.code, 'connexion')
         : erreur.message || 'Erreur lors de la connexion';
 
-      throw { code: 'error', message };
+      throw { code: 'error', message, firebaseCode: erreur.code };
     } finally {
       setChargement(false);
     }
@@ -175,15 +196,20 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
   // la gestion côté écran.
   const reinitialiserMotDePasse = async (email: string) => {
     try {
-      if (!email) {
+      const courrielNettoye = email.trim().toLowerCase();
+
+      if (!courrielNettoye) {
         throw new Error('Veuillez entrer votre adresse courriel');
       }
+      if (!estCourrielValide(courrielNettoye)) {
+        throw new Error('Adresse courriel invalide.');
+      }
 
-      await auth().sendPasswordResetEmail(email);
+      await auth().sendPasswordResetEmail(courrielNettoye);
 
       throw {
         code: 'success',
-        message: `Email envoyé !\n\nUn lien de réinitialisation a été envoyé à ${email}. Vérifiez votre boîte de réception.`,
+        message: `Email envoyé !\n\nUn lien de réinitialisation a été envoyé à ${courrielNettoye}. Vérifiez votre boîte de réception.`,
       };
     } catch (erreur: any) {
       if (erreur.code === 'success') {
@@ -194,7 +220,7 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
         ? obtenirMessageErreur(erreur.code, 'motdepasse')
         : erreur.message || 'Erreur lors de l\'envoi de l\'email';
 
-      throw { code: 'error', message };
+      throw { code: 'error', message, firebaseCode: erreur.code };
     }
   };
 
@@ -208,7 +234,7 @@ export const FournisseurAuth = ({ children }: { children: ReactNode }) => {
       await AsyncStorage.removeItem('premierLancement');
       setPremierLancement(true);
     } catch (erreur: any) {
-      throw { code: 'error', message: 'Erreur lors de la déconnexion' };
+      throw { code: 'error', message: 'Erreur lors de la déconnexion', firebaseCode: erreur?.code };
     }
   };
 

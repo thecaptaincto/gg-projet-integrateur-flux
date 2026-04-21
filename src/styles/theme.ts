@@ -36,6 +36,16 @@ export const theme = {
     alerteAvertissementFin: '#4a0000',
     alerteAvertissementBordure: '#ff6b6b',
 
+    // Attention (validation / champs manquants) — ambre pour contraster avec l'erreur
+    alerteAttentionDebut: '#2a1f00',
+    alerteAttentionFin: '#4a3400',
+    alerteAttentionBordure: '#fbbf24',
+
+    // Erreur (échec serveur / réseau) — rouge plus marqué que l'avertissement
+    alerteErreurDebut: '#1f0000',
+    alerteErreurFin: '#3b0000',
+    alerteErreurBordure: '#ff4d4d',
+
     alerteInfoDebut: '#2a0038',
     alerteInfoFin: '#3b014a',
     alerteInfoBordure: 'rgba(253, 226, 255, 0.35)',

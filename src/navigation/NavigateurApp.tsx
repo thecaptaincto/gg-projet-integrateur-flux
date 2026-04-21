@@ -50,9 +50,13 @@ const IconeOnglet = ({etiquette, actif}: {etiquette: string; actif: boolean}) =>
       ]}
     />
     <Text
+      numberOfLines={1}
+      ellipsizeMode="tail"
       style={[
         styles.texteIconeOnglet,
         actif && styles.texteIconeOngletActif,
+        etiquette.length > 11 && styles.texteIconeOngletLong,
+        actif && etiquette.length > 11 && styles.texteIconeOngletLongActif,
       ]}>
       {etiquette}
     </Text>
@@ -230,10 +234,18 @@ const styles = StyleSheet.create({
     fontFamily: theme.polices.reguliere,
     fontSize: 12,
     color: 'rgba(253, 226, 255, 0.5)',
+    flexShrink: 1,
   },
   // Étiquette active : couleur vive et légèrement plus grande
   texteIconeOngletActif: {
     color: theme.couleurs.primaire,
     fontSize: 13,
+  },
+  // Pour les libellés longs (ex: "Notifications") : éviter le retour à la ligne.
+  texteIconeOngletLong: {
+    fontSize: 11,
+  },
+  texteIconeOngletLongActif: {
+    fontSize: 12,
   },
 });

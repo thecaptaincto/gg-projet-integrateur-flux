@@ -133,11 +133,16 @@ const EcranInscription: React.FC<PropsEcranInscription> = ({navigation}) => {
     });
 
     if (!formulaireValide) {
+      afficherAlerte(
+        'attention',
+        'Attention',
+        'Veuillez corriger les champs en rouge avant de continuer.',
+      );
       return;
     }
 
     try {
-      await inscrire(email, motDePasse, nom);
+      await inscrire(email.trim(), motDePasse, nom.trim());
       afficherAlerte('info', 'Succès', 'Votre compte a été créé.');
     } catch (erreur: unknown) {
       const code = estObjet(erreur) ? obtenirChaine(erreur.code) : undefined;
@@ -153,7 +158,7 @@ const EcranInscription: React.FC<PropsEcranInscription> = ({navigation}) => {
 
       // Toute autre erreur (Firebase ou validation) s'affiche en mode avertissement
       afficherAlerte(
-        'avertissement',
+        'erreur',
         "Erreur d'inscription",
         message ?? 'Une erreur est survenue.',
       );
@@ -266,7 +271,7 @@ const EcranInscription: React.FC<PropsEcranInscription> = ({navigation}) => {
               (!formulaireValide || chargement) && styles.boutonDesactive,
             ]}
             onPress={gererInscription}
-            disabled={chargement}
+            disabled={!formulaireValide || chargement}
           >
             <Text style={styles.texteBouton}>
               {chargement ? 'Inscription...' : 'S\'inscrire'}

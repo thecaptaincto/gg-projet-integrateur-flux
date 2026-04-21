@@ -1,0 +1,15 @@
+debug Using @react-naive-community/cli-tools' logger
+debug Reading Metro config from C:\Users\spike\godin-projet-integrateur\Flux\metro.config.js
+info Welcome to React Native v0.76
+info Starting dev server on port 8081...
+Error: listen EADDRINUSE: address already in use :::8081
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at C:\Users\spike\godin-projet-integrateur\Flux\node_modules\metro\src\index.flow.js:336:14
+    at new Promise (<anonymous>)
+    at earlyPortCheck (C:\Users\spike\godin-projet-integrateur\Flux\node_modules\metro\src\index.flow.js:332:11)
+    at exports.runServer (C:\Users\spike\godin-projet-integrateur\Flux\node_modules\metro\src\index.flow.js:125:9)
+    at Object.runServer [as func] (C:\Users\spike\godin-projet-integrateur\Flux\node_modules\@react-native\community-cli-plugin\dist\commands\start\runServer.js:136:47)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Command.handleAction (C:\Users\spike\godin-projet-integrateur\Flux\node_modules\@react-native-community\cli\build\index.js:118:9)

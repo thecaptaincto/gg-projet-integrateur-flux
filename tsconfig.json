@@ -24,6 +24,8 @@
     "src/__tests__",
     "**/__tests__",
     "external",
+    "movement-tracker-corrige",
+    "movement-tracker-expo",
     "babel.config.js",
     "metro.config.js",
     "jest.config.js"

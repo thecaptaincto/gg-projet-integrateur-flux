@@ -7,6 +7,11 @@ const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
  * @type {import('@react-native/metro-config').MetroConfig}
  */
 const config = {
+  // Sur certains postes Windows, la création de processus (spawn) peut être
+  // bloquée (EPERM). Metro-file-map utilise jest-worker pour paralléliser
+  // l'indexation des fichiers; forcer 1 worker évite le spawn et empêche
+  // un crash interne (500) au bundling.
+  maxWorkers: 1,
   resolver: {
     // Exclure les sous-projets Expo présents dans le repo qui ne font pas
     // partie de cette application React Native CLI. Sans cette exclusion,
