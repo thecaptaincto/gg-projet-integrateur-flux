@@ -1,7 +1,7 @@
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {createMaterialTopTabNavigator} from '@react-navigation/material-top-tabs';
+import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {utiliserAuth} from '../contextes/ContexteAuth';
 import {EcranAccueil} from '../ecrans/principal/EcranAccueil';
 import {EcranInscription} from '../ecrans/authentification/EcranInscription';
@@ -16,8 +16,9 @@ import {EcranHistorique} from '../ecrans/principal/EcranHistorique';
 import {EcranDetailEntrainement} from '../ecrans/principal/EcranDetailEntrainement';
 import {EcranParametres} from '../ecrans/parametres/EcranParametres';
 import {EcranCodeAcces} from '../ecrans/authentification/EcranCodeAcces';
+import {EcranVerificationCourriel} from '../ecrans/authentification/EcranVerificationCourriel';
 import {theme} from '../styles/theme';
-import {Text, View, StyleSheet, TouchableOpacity} from 'react-native';
+import {Text, View, StyleSheet, TouchableOpacity, ActivityIndicator} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 // Typage strict des routes pour détecter les fautes de navigation à la compilation
@@ -31,6 +32,7 @@ type TypesPilePrincipale = {
   DetailEntrainement: {id: string};
   Parametres: undefined;
   CodeAcces: undefined;
+  VerificationCourriel: undefined;
 };
 
 type TypesOngletsPrincipaux = {
@@ -43,7 +45,7 @@ type TypesOngletsPrincipaux = {
 
 const Pile = createNativeStackNavigator<TypesPilePrincipale>();
 
-const Onglets = createMaterialTopTabNavigator<TypesOngletsPrincipaux>();
+const Onglets = createBottomTabNavigator<TypesOngletsPrincipaux>();
 
 // Icône personnalisée pour les onglets : un point indicateur au-dessus de l'étiquette.
 // Le point devient plus grand et change de couleur lorsque l'onglet est actif.
@@ -110,17 +112,13 @@ const BarreOngletsBas = ({state, navigation}: any) => {
 };
 
 // Navigateur à onglets de l'application principale.
-// tabBarPosition="bottom" est ignoré visuellement car tabBar est remplacé par BarreOngletsBas,
-// mais il est conservé pour la logique interne de MaterialTopTabNavigator.
-// swipeEnabled permet de glisser horizontalement entre les écrans.
 const OngletsPrincipaux = () => {
   return (
     <Onglets.Navigator
       id="OngletsPrincipaux"
-      tabBarPosition="bottom"
       tabBar={props => <BarreOngletsBas {...props} />}
       screenOptions={{
-        swipeEnabled: true,
+        headerShown: false,
       }}>
       <Onglets.Screen
         name="OngletPrincipal"
@@ -155,17 +153,25 @@ export const NavigateurApp = () => {
     utilisateur,
     initialisation,
     premierLancement,
+    courrielVerifie,
     codeAccesActif,
     codeAccesVerifie,
   } = utiliserAuth();
 
   // On attend que Firebase confirme l'état de session avant d'afficher quoi que ce soit
   if (initialisation) {
-    return null;
+    return (
+      <View style={styles.ecranChargement}>
+        <ActivityIndicator size="large" color={theme.couleurs.primaire} />
+        <Text style={styles.texteChargement}>Initialisation…</Text>
+      </View>
+    );
   }
 
   const routeInitiale = utilisateur
-    ? codeAccesActif && !codeAccesVerifie
+    ? !courrielVerifie
+      ? 'VerificationCourriel'
+      : codeAccesActif && !codeAccesVerifie
       ? 'CodeAcces'
       : 'Principal'
     : premierLancement
@@ -190,9 +196,15 @@ export const NavigateurApp = () => {
             <Pile.Screen name="Inscription" component={EcranInscription} />
             <Pile.Screen name="Connexion" component={EcranConnexion} />
           </>
+        ) : !courrielVerifie ? (
+          <Pile.Screen
+            name="VerificationCourriel"
+            component={EcranVerificationCourriel}
+          />
+        ) : codeAccesActif && !codeAccesVerifie ? (
+          <Pile.Screen name="CodeAcces" component={EcranCodeAcces} />
         ) : (
           <>
-            <Pile.Screen name="CodeAcces" component={EcranCodeAcces} />
             <Pile.Screen name="Principal" component={OngletsPrincipaux} />
             <Pile.Screen
               name="SuiviMouvement"
@@ -218,6 +230,17 @@ export const NavigateurApp = () => {
 };
 
 const styles = StyleSheet.create({
+  ecranChargement: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.couleurs.debutGradient,
+  },
+  texteChargement: {
+    marginTop: 12,
+    color: theme.couleurs.texteClair,
+    fontSize: 16,
+  },
   // Barre sombre calquée sur la couleur de début du dégradé pour une transition visuelle fluide
   barreOnglets: {
     backgroundColor: '#1a0024',

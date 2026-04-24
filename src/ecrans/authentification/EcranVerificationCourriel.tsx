@@ -1,12 +1,7 @@
-import React, {useMemo, useRef, useState} from 'react';
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React from 'react';
+import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {
   AlertePersonnalisee,
@@ -15,49 +10,53 @@ import {
 import {utiliserAuth} from '../../contextes/ContexteAuth';
 import {theme} from '../../styles/theme';
 
-export const EcranCodeAcces = ({navigation}: {navigation: any}) => {
-  const {verifierCodeAcces, seDeconnecter} = utiliserAuth();
-  const [code, setCode] = useState('');
-  const [chargement, setChargement] = useState(false);
-  const inputRef = useRef<TextInput>(null);
-  const [alerte, setAlerte] = useState({
+export const EcranVerificationCourriel = () => {
+  const {
+    utilisateur,
+    chargement,
+    envoyerCourrielVerification,
+    actualiserVerificationCourriel,
+    seDeconnecter,
+  } = utiliserAuth();
+  const [alerte, setAlerte] = React.useState({
     visible: false,
     type: 'info' as TypeAlertePersonnalisee,
     titre: '',
     message: '',
   });
 
-  const codeNettoye = useMemo(() => code.replace(/\s/g, ''), [code]);
-
   const fermerAlerte = () => setAlerte(prev => ({...prev, visible: false}));
 
-  const valider = async () => {
-    if (chargement) return;
-    if (codeNettoye.length < 6) {
-      setAlerte({
-        visible: true,
-        type: 'attention' as TypeAlertePersonnalisee,
-        titre: 'Attention',
-        message: 'Entre ton code d’accès à 6 chiffres.',
-      });
-      return;
-    }
+  const afficherAlerte = (
+    type: TypeAlertePersonnalisee,
+    titre: string,
+    message: string,
+  ) => {
+    setAlerte({visible: true, type, titre, message});
+  };
 
+  const renvoyer = async () => {
     try {
-      setChargement(true);
-      await verifierCodeAcces(codeNettoye);
-      setCode('');
-      navigation.reset({index: 0, routes: [{name: 'Principal'}]});
+      await envoyerCourrielVerification();
     } catch (e: any) {
-      setAlerte({
-        visible: true,
-        type: 'erreur' as TypeAlertePersonnalisee,
-        titre: 'Erreur',
-        message: e?.message ?? 'Code invalide.',
-      });
-      setTimeout(() => inputRef.current?.focus(), 100);
-    } finally {
-      setChargement(false);
+      const type = e?.code === 'success' ? 'info' : 'erreur';
+      afficherAlerte(
+        type,
+        e?.code === 'success' ? 'Courriel envoyé' : 'Erreur',
+        e?.message ?? "Impossible d'envoyer le courriel.",
+      );
+    }
+  };
+
+  const confirmer = async () => {
+    try {
+      await actualiserVerificationCourriel();
+    } catch (e: any) {
+      afficherAlerte(
+        'attention',
+        'Pas encore vérifié',
+        e?.message ?? "Le courriel n'est pas encore vérifié.",
+      );
     }
   };
 
@@ -73,35 +72,34 @@ export const EcranCodeAcces = ({navigation}: {navigation: any}) => {
     <ArrierePlanGradient>
       <SafeAreaView style={styles.conteneur} edges={['top', 'left', 'right']}>
         <View style={styles.centre}>
-          <Text style={styles.titre}>Sécurité</Text>
+          <Text style={styles.titre}>Vérifie ton courriel</Text>
           <Text style={styles.sousTitre}>
-            Entre ton code d’accès local a 6 chiffres pour continuer.
+            Un lien de vérification a été envoyé à {utilisateur?.email ?? 'ton adresse courriel'}.
+          </Text>
+          <Text style={styles.sousTitreAide}>
+            Ouvre ton courriel, clique sur le lien, puis reviens ici.
           </Text>
 
           <View style={styles.carte}>
-            <Text style={styles.label}>Code d’accès</Text>
-            <TextInput
-              ref={inputRef}
-              value={code}
-              onChangeText={setCode}
-              placeholder="000000"
-              placeholderTextColor={theme.couleurs.placeholder}
-              keyboardType="number-pad"
-              autoCorrect={false}
-              autoCapitalize="none"
-              maxLength={6}
-              style={styles.input}
-              returnKeyType="done"
-              onSubmitEditing={() => void valider()}
-            />
+            <Text style={styles.label}>Étapes</Text>
+            <Text style={styles.etape}>1. Ouvre ton application courriel.</Text>
+            <Text style={styles.etape}>2. Clique sur le lien de vérification Firebase.</Text>
+            <Text style={styles.etape}>3. Reviens dans Flux et appuie sur J&apos;ai confirmé.</Text>
 
             <TouchableOpacity
               style={[styles.bouton, chargement && styles.boutonDesactive]}
               disabled={chargement}
-              onPress={() => void valider()}>
+              onPress={() => void confirmer()}>
               <Text style={styles.boutonTexte}>
-                {chargement ? 'Validation…' : 'Continuer'}
+                {chargement ? 'Vérification...' : "J'ai confirmé"}
               </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.lien}
+              disabled={chargement}
+              onPress={() => void renvoyer()}>
+              <Text style={styles.lienTexte}>Renvoyer le courriel</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.lien} onPress={() => void deconnexion()}>
@@ -144,7 +142,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.couleurs.texteSecondaire,
     textAlign: 'center',
+    marginBottom: theme.espacement.sm,
+  },
+  sousTitreAide: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 13,
+    color: theme.couleurs.texteSecondaire,
+    textAlign: 'center',
     marginBottom: theme.espacement.xl,
+    opacity: 0.9,
   },
   carte: {
     backgroundColor: 'rgba(253,226,255,0.08)',
@@ -157,20 +163,13 @@ const styles = StyleSheet.create({
     fontFamily: theme.polices.reguliere,
     fontSize: 14,
     color: theme.couleurs.texteSecondaire,
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.couleurs.champBordure,
-    backgroundColor: theme.couleurs.champFond,
+  etape: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 15,
     color: theme.couleurs.texteClair,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontFamily: theme.polices.grasse,
-    fontSize: 22,
-    textAlign: 'center',
-    letterSpacing: 4,
+    marginBottom: 8,
   },
   bouton: {
     marginTop: theme.espacement.lg,

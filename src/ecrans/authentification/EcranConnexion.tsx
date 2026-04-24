@@ -3,6 +3,7 @@ import {StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native'
 import {SafeAreaView} from 'react-native-safe-area-context';
 import { utiliserAuth } from '../../contextes/ContexteAuth';
 import { ArrierePlanGradient } from '../../composants/ArrierePlanGradient';
+import {IconeOeil} from '../../composants/IconeOeil';
 import {
   AlertePersonnalisee,
   type TypeAlertePersonnalisee,
@@ -43,7 +44,12 @@ const obtenirChaine = (valeur: unknown): string | undefined =>
 const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
-  const { seConnecter, reinitialiserMotDePasse, chargement } = utiliserAuth();
+  const [motDePasseVisible, setMotDePasseVisible] = useState(false);
+  const {
+    seConnecter,
+    reinitialiserMotDePasse,
+    chargement,
+  } = utiliserAuth();
 
   const [soumissionTentee, setSoumissionTentee] = useState(false);
   const [champsTouches, setChampsTouches] = useState<ChampsTouchesConnexion>({
@@ -192,6 +198,10 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
         {/* Zone centrale verticalement centrée contenant tous les éléments du formulaire */}
         <View style={styles.contenuCentre}>
           <Text style={styles.titre}>Connexion</Text>
+          <Text style={styles.sousTitre}>
+            Si ton compte n'est pas encore vérifié, Flux te guidera pour cliquer
+            le lien reçu par courriel.
+          </Text>
 
           {/* Champ courriel — sert aussi de saisie pour la réinitialisation du mot de passe */}
           <View style={styles.groupeChamp}>
@@ -215,18 +225,31 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
 
           {/* Champ mot de passe masqué */}
           <View style={styles.groupeChamp}>
-            <TextInput
-              style={styles.input}
-              placeholder="Mot de passe"
-              placeholderTextColor={theme.couleurs.placeholder}
-              value={motDePasse}
-              onChangeText={setMotDePasse}
-              onBlur={() =>
-                setChampsTouches(etat => ({...etat, motDePasse: true}))
-              }
-              secureTextEntry
-              autoCapitalize="none"
-            />
+            <View style={styles.inputAvecAction}>
+              <TextInput
+                style={[styles.input, styles.inputMotDePasse]}
+                placeholder="Mot de passe"
+                placeholderTextColor={theme.couleurs.placeholder}
+                value={motDePasse}
+                onChangeText={setMotDePasse}
+                onBlur={() =>
+                  setChampsTouches(etat => ({...etat, motDePasse: true}))
+                }
+                secureTextEntry={!motDePasseVisible}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                onPress={() => setMotDePasseVisible(visible => !visible)}
+                style={styles.boutonVisibilite}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  motDePasseVisible
+                    ? 'Masquer le mot de passe'
+                    : 'Afficher le mot de passe'
+                }>
+                <IconeOeil visible={motDePasseVisible} />
+              </TouchableOpacity>
+            </View>
             {afficherErreurMotDePasse ? (
               <Text style={styles.texteErreur}>{afficherErreurMotDePasse}</Text>
             ) : null}
@@ -314,6 +337,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: theme.couleurs.texteClair,
   },
+  sousTitre: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 14,
+    color: theme.couleurs.texteClair,
+    textAlign: 'center',
+    marginBottom: 20,
+    opacity: 0.82,
+  },
   groupeChamp: {
     marginBottom: 15,
   },
@@ -328,6 +359,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 15,
     fontSize: 16,
+  },
+  inputAvecAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.couleurs.champBordure,
+    backgroundColor: theme.couleurs.champFond,
+    borderRadius: 12,
+  },
+  inputMotDePasse: {
+    flex: 1,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+  },
+  boutonVisibilite: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   texteErreur: {
     marginTop: 6,

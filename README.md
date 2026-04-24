@@ -38,19 +38,29 @@ Ce projet utilise Firebase Authentication via `@react-native-firebase`.
 
 Note : pour une remise/projet partagé, ces fichiers de configuration Firebase ne devraient pas être inclus (clés/configs). Ajoutez-les localement si vous souhaitez exécuter l’app.
 
+Flux utilise le courriel de vérification natif de Firebase :
+
+- l'utilisateur crée son compte
+- Firebase envoie un courriel contenant un lien
+- l'utilisateur clique ce lien
+- il revient dans Flux et confirme que le courriel a bien été vérifié
+
 ## Démarrage
 
 Dans un terminal :
 
 ```bash
-npx react-native start --reset-cache
+npm start
 ```
 
 Dans un autre terminal (pour appareil Android):
 
 ```bash
-npx react-native run-android
+npm run android
 ```
+
+Si vous voyez un écran blanc au démarrage, c’est souvent parce que le port Metro par défaut (`8081`)
+est déjà utilisé. Ce projet est configuré pour utiliser `8082` (voir `android/gradle.properties`).
 
 ## Tests
 

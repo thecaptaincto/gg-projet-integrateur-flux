@@ -39,13 +39,18 @@ interface EtatAlerteProfil {
 // affichage du code d'accès, messages d'erreur) depuis un seul objet d'état.
 export const EcranProfil = () => {
   const navigation = useNavigation<any>();
-  const {utilisateur, seDeconnecter, genererCodeAcces} = utiliserAuth();
+  const {
+    utilisateur,
+    courrielVerifie,
+    envoyerCourrielVerification,
+    seDeconnecter,
+    genererCodeAcces,
+  } = utiliserAuth();
   const [editionProfilVisible, setEditionProfilVisible] = React.useState(false);
   const [nomProfil, setNomProfil] = React.useState(
     utilisateur?.displayName ?? '',
   );
   const email = utilisateur?.email ?? auth().currentUser?.email ?? '';
-  const estVerifie = utilisateur?.emailVerified ?? auth().currentUser?.emailVerified ?? false;
   const [alerte, setAlerte] = React.useState<EtatAlerteProfil>({
     visible: false,
     type: 'info',
@@ -143,16 +148,12 @@ export const EcranProfil = () => {
 
   const gererRenvoyerVerification = async () => {
     try {
-      const user = auth().currentUser;
-      if (!user) {
-        throw new Error('Aucun utilisateur connecté.');
-      }
-      await user.sendEmailVerification();
+      await envoyerCourrielVerification();
       setAlerte({
         visible: true,
         type: 'info',
         titre: 'Courriel envoyé',
-        message: `Un courriel de vérification a été envoyé à ${user.email ?? ''}.`,
+        message: `Un courriel de vérification avec un lien a été envoyé à ${email}. Vérifie aussi les indésirables.`,
         texteConfirmer: 'OK',
         onConfirmer: fermerAlerte,
         onAnnuler: fermerAlerte,
@@ -243,13 +244,13 @@ export const EcranProfil = () => {
               <View
                 style={[
                   styles.badge,
-                  estVerifie ? styles.badgeOk : styles.badgeKo,
+                  courrielVerifie ? styles.badgeOk : styles.badgeKo,
                 ]}>
                 <Text style={styles.badgeTexte}>
-                  {estVerifie ? 'Email vérifié' : 'Email non vérifié'}
+                  {courrielVerifie ? 'Courriel vérifié' : 'Courriel non vérifié'}
                 </Text>
               </View>
-              {!estVerifie ? (
+              {!courrielVerifie ? (
                 <TouchableOpacity
                   style={styles.badgeAction}
                   onPress={() => void gererRenvoyerVerification()}>

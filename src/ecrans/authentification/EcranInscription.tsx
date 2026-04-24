@@ -3,6 +3,7 @@ import {StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native'
 import {SafeAreaView} from 'react-native-safe-area-context';
 import { utiliserAuth } from '../../contextes/ContexteAuth';
 import { ArrierePlanGradient } from '../../composants/ArrierePlanGradient';
+import {IconeOeil} from '../../composants/IconeOeil';
 import {
   AlertePersonnalisee,
   type TypeAlertePersonnalisee,
@@ -50,6 +51,8 @@ const EcranInscription: React.FC<PropsEcranInscription> = ({navigation}) => {
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
   const [confirmMotDePasse, setConfirmMotDePasse] = useState('');
+  const [motDePasseVisible, setMotDePasseVisible] = useState(false);
+  const [confirmMotDePasseVisible, setConfirmMotDePasseVisible] = useState(false);
   const { inscrire, chargement } = utiliserAuth();
 
   // `soumissionTentee` force l'affichage de toutes les erreurs dès le premier clic sur "S'inscrire"
@@ -228,18 +231,31 @@ const EcranInscription: React.FC<PropsEcranInscription> = ({navigation}) => {
 
           {/* Champ mot de passe — secureTextEntry masque les caractères saisis */}
           <View style={styles.groupeChamp}>
-            <TextInput
-              style={styles.input}
-              placeholder="Mot de passe (min. 8 caractères)"
-              placeholderTextColor={theme.couleurs.placeholder}
-              value={motDePasse}
-              onChangeText={setMotDePasse}
-              onBlur={() =>
-                setChampsTouches(etat => ({...etat, motDePasse: true}))
-              }
-              secureTextEntry
-              autoCapitalize="none"
-            />
+            <View style={styles.inputAvecAction}>
+              <TextInput
+                style={[styles.input, styles.inputMotDePasse]}
+                placeholder="Mot de passe (min. 8 caractères)"
+                placeholderTextColor={theme.couleurs.placeholder}
+                value={motDePasse}
+                onChangeText={setMotDePasse}
+                onBlur={() =>
+                  setChampsTouches(etat => ({...etat, motDePasse: true}))
+                }
+                secureTextEntry={!motDePasseVisible}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                onPress={() => setMotDePasseVisible(visible => !visible)}
+                style={styles.boutonVisibilite}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  motDePasseVisible
+                    ? 'Masquer le mot de passe'
+                    : 'Afficher le mot de passe'
+                }>
+                <IconeOeil visible={motDePasseVisible} />
+              </TouchableOpacity>
+            </View>
             {erreurChamp('motDePasse') ? (
               <Text style={styles.texteErreur}>{erreurChamp('motDePasse')}</Text>
             ) : null}
@@ -247,18 +263,33 @@ const EcranInscription: React.FC<PropsEcranInscription> = ({navigation}) => {
 
           {/* Champ confirmation — vérifie que les deux mots de passe sont identiques */}
           <View style={styles.groupeChamp}>
-            <TextInput
-              style={styles.input}
-              placeholder="Confirmer le mot de passe"
-              placeholderTextColor={theme.couleurs.placeholder}
-              value={confirmMotDePasse}
-              onChangeText={setConfirmMotDePasse}
-              onBlur={() =>
-                setChampsTouches(etat => ({...etat, confirmMotDePasse: true}))
-              }
-              secureTextEntry
-              autoCapitalize="none"
-            />
+            <View style={styles.inputAvecAction}>
+              <TextInput
+                style={[styles.input, styles.inputMotDePasse]}
+                placeholder="Confirmer le mot de passe"
+                placeholderTextColor={theme.couleurs.placeholder}
+                value={confirmMotDePasse}
+                onChangeText={setConfirmMotDePasse}
+                onBlur={() =>
+                  setChampsTouches(etat => ({...etat, confirmMotDePasse: true}))
+                }
+                secureTextEntry={!confirmMotDePasseVisible}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                onPress={() =>
+                  setConfirmMotDePasseVisible(visible => !visible)
+                }
+                style={styles.boutonVisibilite}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  confirmMotDePasseVisible
+                    ? 'Masquer la confirmation du mot de passe'
+                    : 'Afficher la confirmation du mot de passe'
+                }>
+                <IconeOeil visible={confirmMotDePasseVisible} />
+              </TouchableOpacity>
+            </View>
             {erreurChamp('confirmMotDePasse') ? (
               <Text style={styles.texteErreur}>
                 {erreurChamp('confirmMotDePasse')}
@@ -346,6 +377,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 15,
     fontSize: 16,
+  },
+  inputAvecAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.couleurs.champBordure,
+    backgroundColor: theme.couleurs.champFond,
+    borderRadius: 12,
+  },
+  inputMotDePasse: {
+    flex: 1,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+  },
+  boutonVisibilite: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   texteErreur: {
     marginTop: 6,
