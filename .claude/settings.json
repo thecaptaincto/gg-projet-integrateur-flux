@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm info:*)",
+      "Bash(python -c \"import sys,json; vers=json.load\\(sys.stdin\\); compatible=[v for v in vers if v.startswith\\('17.'\\)]; print\\('expo-location 17.x versions:', compatible[-5:]\\)\")",
+      "Bash(python -c \"import sys,json; vers=json.load\\(sys.stdin\\); compatible=[v for v in vers if v.startswith\\('13.'\\) or v.startswith\\('14.'\\)]; print\\('expo-sensors 13-14.x versions:', compatible[-8:]\\)\")",
+      "Bash(python -c \"import sys,json; vers=json.load\\(sys.stdin\\); stable=[v for v in vers if not 'canary' in v and not 'alpha' in v and not 'beta' in v]; print\\('stable versions:', stable[-10:]\\)\")",
+      "Bash(python -c \"import sys,json; vers=json.load\\(sys.stdin\\); stable=[v for v in vers if not 'canary' in v and not 'alpha' in v and not 'beta' in v]; print\\('all stable versions:', stable\\)\")",
+      "Bash(python -c \"import sys,json; vers=json.load\\(sys.stdin\\); stable=[v for v in vers if not 'canary' in v and not 'alpha' in v and not 'beta' in v]; print\\('all stable:', stable[-20:]\\)\")",
+      "Bash(python -c \"import sys,json; vers=json.load\\(sys.stdin\\); stable=[v for v in vers if not 'canary' in v and not 'alpha' in v and not 'beta' in v]; print\\('versions around 17.x:', [v for v in stable if v.startswith\\('16.'\\) or v.startswith\\('17.'\\) or v.startswith\\('18.'\\) or v.startswith\\('19.'\\)]\\)\")",
+      "Bash(npm pack:*)",
+      "Bash(npm install:*)",
+      "Bash(python -c ':*)",
+      "Bash(tar xzf:*)",
+      "Bash(node -e \"const p=require\\('./node_modules/expo/package.json'\\); console.log\\('expo',p.version\\)\")",
+      "Bash(node -e \"const p=require\\('./node_modules/expo-location/package.json'\\); console.log\\('expo-location',p.version\\)\")",
+      "Bash(node -e \"const p=require\\('./node_modules/expo-sensors/package.json'\\); console.log\\('expo-sensors',p.version\\)\")",
+      "Bash(node -e \"const p=require\\('./node_modules/expo-modules-core/package.json'\\); console.log\\('expo-modules-core',p.version\\)\")",
+      "Bash(node -e \"const p=require\\('./node_modules/react-native-gesture-handler/package.json'\\); console.log\\('gesture-handler',p.version\\)\")",
+      "Bash(node -e \"try{const p=require\\('./node_modules/expo-modules-autolinking/package.json'\\);console.log\\('expo-modules-autolinking',p.version\\)}catch{console.log\\('NOT INSTALLED'\\)}\")",
+      "Bash(node -e \"const p=require\\('./node_modules/expo-constants/package.json'\\);console.log\\('expo-constants',p.version\\)\")",
+      "Bash(node -e \"const v=JSON.parse\\(require\\('child_process'\\).execSync\\('npm view expo-constants versions --json'\\).toString\\(\\)\\); const sdk52=v.filter\\(x=>x.startsWith\\('17.'\\)\\); console.log\\('17.x versions:', sdk52.join\\(', '\\)\\)\")",
+      "Bash(npm show *)",
+      "Read(//c/Users/sampa/AppData/Local/Temp/**)",
+      "Bash(curl -sL https://registry.npmjs.org/expo-constants/-/expo-constants-17.0.3.tgz)",
+      "Bash(tar -xzf - package/android/build.gradle -O)",
+      "Bash(node -e \"const p=require\\('./node_modules/expo-constants/package.json'\\); console.log\\(p.version\\)\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('react-native:', p.dependencies['react-native']\\); console.log\\('react-native version:', p.dependencies['react-native']\\);\")"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
+    ]
+  }
+}

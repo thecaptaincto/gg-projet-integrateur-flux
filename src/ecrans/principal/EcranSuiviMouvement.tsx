@@ -29,7 +29,7 @@ export const EcranSuiviMouvement = () => {
   const route = useRoute<any>();
   const preset = (route.params?.preset as string | undefined) ?? undefined;
   const [modeSimulation] = useState<boolean>(
-    (route.params?.simulation as boolean | undefined) ?? true,
+    (route.params?.simulation as boolean | undefined) ?? false,
   );
   const [nomEntrainement, setNomEntrainement] = useState('');
   const inputRef = useRef<TextInput>(null);

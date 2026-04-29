@@ -56,10 +56,12 @@ export function Dashboard({
     latitude,
     longitude,
     altitude,
+    precisionGps,
     vitesseMs,
     vitesseKmh,
     nombrePasSession,
     accelerometre,
+    agitation,
     numeroTrame,
     erreurs,
     estEnPause,
@@ -140,6 +142,12 @@ export function Dashboard({
             unite="m"
             couleur={theme.couleurs.violetAccent}
           />
+          <CarteMetrique
+            titre="Précision GPS"
+            valeur={precisionGps !== null ? precisionGps.toFixed(0) : '--'}
+            unite="m"
+            couleur={theme.couleurs.violetAccent}
+          />
         </View>
       ) : (
         <Text style={styles.nonDispo}>Non disponible</Text>
@@ -191,6 +199,14 @@ export function Dashboard({
       ) : (
         <Text style={styles.nonDispo}>Non disponible</Text>
       )}
+
+      <Text style={styles.sectionTitre}>Mouvement détecté</Text>
+      <CarteMetrique
+        titre="Agitation"
+        valeur={agitation !== null ? agitation.toFixed(2) : '--'}
+        unite="m/s²"
+        couleur={theme.couleurs.primaire}
+      />
 
       {/* Boutons de contrôle */}
       {!estActif ? (

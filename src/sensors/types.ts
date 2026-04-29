@@ -1,6 +1,6 @@
 // ============================================================
 // types.ts — Interfaces centrales pour les capteurs
-// Porté depuis le projet Expo de ton ami (sans dépendance Expo).
+// Équivalent de capteurs_base.py (SourceCapteurs)
 // ============================================================
 
 /** Position GPS brute */
@@ -9,7 +9,6 @@ export interface PositionGPS {
   longitude: number;
   altitude: number | null;
   speed: number | null; // m/s, peut être null si non dispo
-  accuracy: number | null; // Précision horizontale en mètres (null si inconnue)
   timestamp: number; // ms depuis epoch
 }
 
@@ -34,7 +33,6 @@ export interface EtatSuivi {
   latitude: number | null;
   longitude: number | null;
   altitude: number | null;
-  precisionGps: number | null;
 
   // Mouvement
   vitesseMs: number | null;
@@ -44,30 +42,10 @@ export interface EtatSuivi {
   // Accéléromètre
   accelerometre: DonneesAccelerometre | null;
 
-  // Valeurs lissées / filtrées
-  vitesseLissee: number | null;
-  vitesseLisseeKmh: number | null;
-  altitudeLissee: number | null;
-  agitation: number | null;
-  allureSecParKm: number | null;
-
   // Métadonnées
   numeroTrame: number;
   erreurs: string[];
   estActif: boolean;
-  estEnPause: boolean;
-
-  // Statistiques session en cours
-  dureeSecondes: number;
-  distanceMetres: number;
-}
-
-/** Résumé retourné quand une session est arrêtée */
-export interface ResumeSuivi {
-  dureeSecondes: number;
-  distanceMetres: number;
-  nombrePas: number;
-  vitesseMoyenneKmh: number;
 }
 
 /** Configuration du suivi */
@@ -88,4 +66,3 @@ export const CONFIG_DEFAUT: ConfigSuivi = {
     accelerometre: true,
   },
 };
-

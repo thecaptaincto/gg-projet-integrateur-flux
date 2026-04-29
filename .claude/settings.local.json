@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx react-native:*)",
+      "Bash(cmd.exe /c \"npx react-native run-android\")"
+    ]
+  }
+}

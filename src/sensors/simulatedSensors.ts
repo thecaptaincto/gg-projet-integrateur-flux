@@ -1,47 +1,37 @@
 // ============================================================
 // simulatedSensors.ts — Trajectoire simulée pour tests
-// Port direct du projet de ton ami (capteurs_simules.py).
+// Port direct de capteurs_simules.py
 // ============================================================
 
-import type {DonneesAccelerometre, PositionGPS} from './types';
+import type { PositionGPS, DonneesAccelerometre } from "./types";
 
 // Chaque point : [lat, lon, alt, speed_m_s, pasDelta, ax, ay, az]
-// Trajectoire simulée autour du Plateau-Mont-Royal, Montréal
-const TRAJECTOIRE: [
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-][] = [
+const TRAJECTOIRE: [number, number, number, number, number, number, number, number][] = [
   // Départ immobile
-  [45.5231, -73.5823, 35.0, 0.0, 0, 0.02, 0.01, 9.79],
-  [45.5231, -73.5823, 35.0, 0.0, 0, 0.03, 0.02, 9.8],
-  [45.5231, -73.5823, 35.0, 0.0, 0, 0.01, 0.01, 9.81],
+  [48.85660, 2.35220, 35.0, 0.0, 0, 0.02, 0.01, 9.79],
+  [48.85660, 2.35220, 35.0, 0.0, 0, 0.03, 0.02, 9.80],
+  [48.85660, 2.35220, 35.0, 0.0, 0, 0.01, 0.01, 9.81],
   // Début de marche lente
-  [45.52313, -73.58218, 35.1, 1.1, 1, 0.2, 0.15, 9.65],
-  [45.52317, -73.58205, 35.2, 1.2, 1, 0.25, 0.18, 9.6],
-  [45.52322, -73.58191, 35.3, 1.3, 2, 0.3, 0.2, 9.55],
-  [45.52328, -73.58176, 35.4, 1.4, 2, 0.28, 0.19, 9.58],
+  [48.85663, 2.35228, 35.1, 1.1, 1, 0.20, 0.15, 9.65],
+  [48.85667, 2.35241, 35.2, 1.2, 1, 0.25, 0.18, 9.60],
+  [48.85672, 2.35255, 35.3, 1.3, 2, 0.30, 0.20, 9.55],
+  [48.85678, 2.35270, 35.4, 1.4, 2, 0.28, 0.19, 9.58],
   // Accélération
-  [45.52336, -73.58156, 35.5, 1.8, 2, 0.4, 0.3, 9.5],
-  [45.52347, -73.58131, 35.6, 2.1, 3, 0.5, 0.35, 9.45],
-  [45.5236, -73.58104, 35.7, 2.3, 3, 0.55, 0.38, 9.42],
-  [45.52375, -73.58074, 35.8, 2.2, 3, 0.52, 0.36, 9.44],
+  [48.85686, 2.35290, 35.5, 1.8, 2, 0.40, 0.30, 9.50],
+  [48.85697, 2.35315, 35.6, 2.1, 3, 0.50, 0.35, 9.45],
+  [48.85710, 2.35342, 35.7, 2.3, 3, 0.55, 0.38, 9.42],
+  [48.85725, 2.35372, 35.8, 2.2, 3, 0.52, 0.36, 9.44],
   // Ralentissement
-  [45.52387, -73.58048, 35.7, 1.5, 2, 0.3, 0.22, 9.56],
-  [45.52396, -73.58028, 35.6, 1.0, 1, 0.2, 0.15, 9.62],
+  [48.85737, 2.35398, 35.7, 1.5, 2, 0.30, 0.22, 9.56],
+  [48.85746, 2.35418, 35.6, 1.0, 1, 0.20, 0.15, 9.62],
   // Arrêt
-  [45.52402, -73.58016, 35.5, 0.0, 0, 0.03, 0.02, 9.79],
-  [45.52402, -73.58016, 35.5, 0.0, 0, 0.02, 0.01, 9.8],
+  [48.85752, 2.35430, 35.5, 0.0, 0, 0.03, 0.02, 9.79],
+  [48.85752, 2.35430, 35.5, 0.0, 0, 0.02, 0.01, 9.80],
 ];
 
 export class SourceCapteursSimules {
   private index = 0;
-  private totalPas = 0;
+  private totalPas = 1200;
   private intervalId: ReturnType<typeof setInterval> | null = null;
 
   private pointCourant() {
@@ -65,10 +55,9 @@ export class SourceCapteursSimules {
         longitude: lon,
         altitude: alt,
         speed,
-        accuracy: 5,
         timestamp: Date.now(),
       },
-      accelerometre: {x: ax, y: ay, z: az},
+      accelerometre: { x: ax, y: ay, z: az },
       nombrePasTotal: this.totalPas,
     };
   }
@@ -76,7 +65,7 @@ export class SourceCapteursSimules {
   /** Démarre la simulation en boucle avec callback */
   demarrer(
     intervalleMs: number,
-    callback: (trame: ReturnType<typeof this.lireTrame>) => void,
+    callback: (trame: ReturnType<typeof this.lireTrame>) => void
   ): void {
     this.intervalId = setInterval(() => {
       callback(this.lireTrame());
@@ -92,7 +81,6 @@ export class SourceCapteursSimules {
 
   reinitialiser(): void {
     this.index = 0;
-    this.totalPas = 0;
+    this.totalPas = 1200;
   }
 }
-
