@@ -28,6 +28,9 @@ const config = {
       /movement-tracker-corrige[/\\].*/,
       /movement-tracker-expo[/\\].*/,
       /external[/\\].*/,
+      /android[/\\]app[/\\]build[/\\].*/,
+      /android[/\\]build[/\\].*/,
+      /\.gradle[/\\].*/,
     ]),
   },
 };

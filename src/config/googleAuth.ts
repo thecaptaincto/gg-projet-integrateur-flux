@@ -1,10 +1,19 @@
-const ID_CLIENT_WEB =
-  '490264637112-spbo924sivuf2oj6f4f58pr39s1obl6e.apps.googleusercontent.com';
+import Config from 'react-native-config';
 
+/**
+ * Configuration Google OAuth
+ * Les identifiants sont stockés dans les variables d'environnement (.env)
+ * et NON en dur dans le code source pour des raisons de sécurité
+ */
 export const configurationGoogle = {
-  webClientId: ID_CLIENT_WEB,
-  iosClientId: undefined as string | undefined,
+  webClientId: Config.GOOGLE_WEB_CLIENT_ID ?? undefined,
+  iosClientId: Config.GOOGLE_IOS_CLIENT_ID ?? undefined,
 };
 
-export const googleAuthEstConfiguree = () =>
-  Boolean(configurationGoogle.webClientId.trim());
+/**
+ * Vérifie que la configuration Google est complète
+ */
+export const googleAuthEstConfiguree = (): boolean => {
+  const webClientId = configurationGoogle.webClientId?.trim();
+  return Boolean(webClientId && webClientId.length > 0);
+};
