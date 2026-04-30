@@ -8,23 +8,31 @@ import {
   Switch,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import { ArrierePlanGradient } from '../../composants/ArrierePlanGradient';
+import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {
   AlertePersonnalisee,
   type TypeAlertePersonnalisee,
 } from '../../composants/AlertePersonnalisee';
-import { theme } from '../../styles/theme';
+import {theme} from '../../styles/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '@react-native-firebase/auth';
 import {utiliserAuth} from '../../contextes/ContexteAuth';
+import {utiliserNotifications} from '../../contextes/ContexteNotifications';
 
-interface PropsEcranParametres {
+interface ProprietesEcranParametres {
   navigation: any;
 }
 
-export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) => {
+export const EcranParametres: React.FC<ProprietesEcranParametres> = ({
+  navigation,
+}) => {
   const {codeAccesActif, activerCodeAcces, obtenirCodeAcces, regenererCodeAcces} =
     utiliserAuth();
+  const {
+    notificationsActivees,
+    definirNotificationsActivees,
+    permissionAccordee,
+  } = utiliserNotifications();
   const [sectionMonCompteOuverte, setSectionMonCompteOuverte] = useState(true);
   const [sectionConfidentialiteOuverte, setSectionConfidentialiteOuverte] =
     useState(true);
@@ -34,7 +42,6 @@ export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) 
 
   const [profilPublic, setProfilPublic] = useState(true);
   const [partagerStats, setPartagerStats] = useState(true);
-  const [notifsActives, setNotifsActives] = useState(true);
   const [notifsActivites, setNotifsActivites] = useState(true);
 
   const [alerte, setAlerte] = useState<{
@@ -75,18 +82,15 @@ export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) 
         const [
           profilPublicCharge,
           partagerStatsCharge,
-          notifsActivesCharge,
           notifsActivitesCharge,
         ] = await Promise.all([
           lireBooleen('profil_public', true),
           lireBooleen('partager_stats', true),
-          lireBooleen('notifs_actives', true),
           lireBooleen('notifs_activites', true),
         ]);
 
         setProfilPublic(profilPublicCharge);
         setPartagerStats(partagerStatsCharge);
-        setNotifsActives(notifsActivesCharge);
         setNotifsActivites(notifsActivitesCharge);
       } catch {
         // Si AsyncStorage échoue, on conserve les valeurs par défaut (true)
@@ -164,6 +168,35 @@ export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) 
       afficherAlerte('info', "Nouveau code d'accès", `Ton nouveau code : ${code}`);
     } catch {
       afficherAlerte('erreur', 'Erreur', "Impossible de générer un nouveau code.");
+    }
+  };
+
+  const gererNotificationsActives = async (valeur: boolean) => {
+    try {
+      const resultat = await definirNotificationsActivees(valeur);
+
+      if (valeur && !resultat.permissionAccordee) {
+        afficherAlerte(
+          'avertissement',
+          'Permission refusée',
+          "L'autorisation système est nécessaire pour recevoir les notifications.",
+        );
+        return;
+      }
+
+      afficherAlerte(
+        'info',
+        valeur ? 'Notifications activées' : 'Notifications désactivées',
+        valeur
+          ? 'Flux peut maintenant recevoir tes notifications système.'
+          : 'Les notifications système ont été désactivées pour cette application.',
+      );
+    } catch {
+      afficherAlerte(
+        'erreur',
+        'Erreur',
+        "Impossible de mettre à jour les notifications pour l'instant.",
+      );
     }
   };
 
@@ -268,10 +301,8 @@ export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) 
                 <View style={styles.ligneSwitch}>
                   <Text style={styles.texteItem}>Activer les notifications</Text>
                   <Switch
-                    value={notifsActives}
-                    onValueChange={val =>
-                      void definirPreference('notifs_actives', val, setNotifsActives)
-                    }
+                    value={notificationsActivees}
+                    onValueChange={val => void gererNotificationsActives(val)}
                     trackColor={{
                       false: 'rgba(253, 226, 255, 0.25)',
                       true: theme.couleurs.violetAccent,
@@ -280,7 +311,11 @@ export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) 
                   />
                 </View>
 
-                <View style={[styles.ligneSwitch, !notifsActives && styles.ligneSwitchDesactive]}>
+                <View
+                  style={[
+                    styles.ligneSwitch,
+                    !notificationsActivees && styles.ligneSwitchDesactive,
+                  ]}>
                   <Text style={styles.texteItem}>Notifications d'activités</Text>
                   <Switch
                     value={notifsActivites}
@@ -291,7 +326,7 @@ export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) 
                         setNotifsActivites,
                       )
                     }
-                    disabled={!notifsActives}
+                    disabled={!notificationsActivees}
                     trackColor={{
                       false: 'rgba(253, 226, 255, 0.25)',
                       true: theme.couleurs.violetAccent,
@@ -299,6 +334,12 @@ export const EcranParametres: React.FC<PropsEcranParametres> = ({ navigation }) 
                     thumbColor={theme.couleurs.primaire}
                   />
                 </View>
+
+                <Text style={styles.texteAideNotifications}>
+                  {notificationsActivees && permissionAccordee
+                    ? 'Autorisation système accordée.'
+                    : "L'autorisation système sera demandée à l'activation."}
+                </Text>
               </View>
             ) : null}
           </View>
@@ -460,5 +501,12 @@ const styles = StyleSheet.create({
     fontFamily: theme.polices.reguliere,
     fontSize: 18,
     color: theme.couleurs.texteBoutonPrimaire,
+  },
+  texteAideNotifications: {
+    marginTop: 4,
+    fontFamily: theme.polices.reguliere,
+    fontSize: 14,
+    color: 'rgba(253, 226, 255, 0.65)',
+    lineHeight: 20,
   },
 });

@@ -3,7 +3,7 @@ import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {theme} from '../../../styles/theme';
 import type {EtatSuivi} from '../sensors/types';
 
-interface PropsDashboard {
+interface ProprietesTableauDeBordSuivi {
   etat: EtatSuivi;
   estActif: boolean;
   onDemarrer: () => void;
@@ -44,14 +44,14 @@ function CarteMetrique({
   );
 }
 
-export function Dashboard({
+export function TableauDeBordSuivi({
   etat,
   estActif,
   onDemarrer,
   onArreter,
   onPauseReprendre,
   modeSimulation,
-}: PropsDashboard) {
+}: ProprietesTableauDeBordSuivi) {
   const {
     latitude,
     longitude,
@@ -136,7 +136,7 @@ export function Dashboard({
           />
           <CarteMetrique
             titre="Altitude"
-            valeur={altitude !== null ? altitude.toFixed(1) : 'N/A'}
+            valeur={altitude !== null ? altitude.toFixed(1) : 'N/D'}
             unite="m"
             couleur={theme.couleurs.violetAccent}
           />

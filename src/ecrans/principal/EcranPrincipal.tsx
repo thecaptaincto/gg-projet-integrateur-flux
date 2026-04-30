@@ -70,8 +70,8 @@ export const EcranPrincipal = () => {
   // Recharger à chaque fois qu'on revient sur cet écran
   useFocusEffect(
     useCallback(() => {
-      chargerEntrainements().then(setEntrainements);
-    }, []),
+      chargerEntrainements(utilisateur?.uid).then(setEntrainements);
+    }, [utilisateur?.uid]),
   );
 
   const entrainementsPeriode = entrainements.filter(e =>
@@ -98,7 +98,8 @@ export const EcranPrincipal = () => {
         <ScrollView contentContainerStyle={styles.contenuScroll}>
           <Text style={styles.titre}>FLUX</Text>
           <Text style={styles.salutation}>
-            Bienvenue, {utilisateur?.email?.split('@')[0] || 'Utilisateur'}!
+            Bienvenue,{' '}
+            {utilisateur?.displayName || utilisateur?.email?.split('@')[0] || 'Utilisateur'}!
           </Text>
 
           {/* Section statistiques */}

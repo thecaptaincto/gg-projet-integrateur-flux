@@ -3,6 +3,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {utiliserAuth} from '../contextes/ContexteAuth';
+import {utiliserNotifications} from '../contextes/ContexteNotifications';
 import {EcranAccueil} from '../ecrans/principal/EcranAccueil';
 import {EcranInscription} from '../ecrans/authentification/EcranInscription';
 import {EcranConnexion} from '../ecrans/authentification/EcranConnexion';
@@ -27,7 +28,7 @@ type TypesPilePrincipale = {
   Inscription: undefined;
   Connexion: undefined;
   Principal: undefined;
-  SuiviMouvement: {preset?: string; simulation?: boolean} | undefined;
+  SuiviMouvement: {suggestion?: string; simulation?: boolean} | undefined;
   Historique: {periode?: 'jour' | 'semaine' | 'mois'} | undefined;
   DetailEntrainement: {id: string};
   Parametres: undefined;
@@ -49,14 +50,32 @@ const Onglets = createBottomTabNavigator<TypesOngletsPrincipaux>();
 
 // Icône personnalisée pour les onglets : un point indicateur au-dessus de l'étiquette.
 // Le point devient plus grand et change de couleur lorsque l'onglet est actif.
-const IconeOnglet = ({etiquette, actif}: {etiquette: string; actif: boolean}) => (
+const IconeOnglet = ({
+  etiquette,
+  actif,
+  notificationBadge,
+}: {
+  etiquette: string;
+  actif: boolean;
+  notificationBadge?: number;
+}) => (
   <View style={styles.conteneurIconeOnglet}>
-    <View
-      style={[
-        styles.pointIconeOnglet,
-        actif && styles.pointIconeOngletActif,
-      ]}
-    />
+    <View style={styles.conteneurPointOnglet}>
+      <View
+        style={[
+          styles.pointIconeOnglet,
+          actif && styles.pointIconeOngletActif,
+          notificationBadge ? styles.pointIconeOngletAlerte : null,
+        ]}
+      />
+      {notificationBadge ? (
+        <View style={styles.badgeNotifications}>
+          <Text style={styles.texteBadgeNotifications}>
+            {notificationBadge > 9 ? '9+' : notificationBadge}
+          </Text>
+        </View>
+      ) : null}
+    </View>
     <Text
       numberOfLines={1}
       ellipsizeMode="tail"
@@ -76,6 +95,7 @@ const IconeOnglet = ({etiquette, actif}: {etiquette: string; actif: boolean}) =>
 // un rendu visuel cohérent avec le thème violet de l'application.
 const BarreOngletsBas = ({state, navigation}: any) => {
   const insets = useSafeAreaInsets();
+  const {nombreNonLues} = utiliserNotifications();
   // On respecte au minimum 24px de padding pour les appareils sans encoche
   const paddingBas = Math.max(insets.bottom, 24);
 
@@ -103,7 +123,13 @@ const BarreOngletsBas = ({state, navigation}: any) => {
             accessibilityRole="button"
             onPress={() => navigation.navigate(route.name)}
             style={styles.boutonOnglet}>
-            <IconeOnglet etiquette={etiquette} actif={actif} />
+            <IconeOnglet
+              etiquette={etiquette}
+              actif={actif}
+              notificationBadge={
+                route.name === 'OngletNotifications' ? nombreNonLues : 0
+              }
+            />
           </TouchableOpacity>
         );
       })}
@@ -158,7 +184,7 @@ export const NavigateurApp = () => {
     codeAccesVerifie,
   } = utiliserAuth();
 
-  // On attend que Firebase confirme l'état de session avant d'afficher quoi que ce soit
+  // On attend que le service d'authentification confirme l'état de session avant d'afficher quoi que ce soit
   if (initialisation) {
     return (
       <View style={styles.ecranChargement}>
@@ -263,6 +289,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  conteneurPointOnglet: {
+    minHeight: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
   // Point indicateur inactif : petit et semi-transparent
   pointIconeOnglet: {
     width: 8,
@@ -277,6 +309,28 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+  },
+  pointIconeOngletAlerte: {
+    backgroundColor: '#ff7a99',
+  },
+  badgeNotifications: {
+    position: 'absolute',
+    top: -6,
+    right: -16,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ff7a99',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.7)',
+  },
+  texteBadgeNotifications: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 10,
+    color: '#2a0134',
   },
   // Étiquette inactive : grisée pour indiquer visuellement qu'elle est sélectionnable
   texteIconeOnglet: {

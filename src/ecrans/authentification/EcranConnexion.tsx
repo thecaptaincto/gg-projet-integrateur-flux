@@ -13,8 +13,8 @@ import {theme} from '../../styles/theme';
 import {validerEmail} from '../../utils/validation';
 import {estMotDePasseValideConnexion} from '../../utils/validationFormulaire';
 
-// Props reçues par le composant via React Navigation
-interface PropsEcranConnexion {
+// Propriétés reçues par le composant via React Navigation
+interface ProprietesEcranConnexion {
   navigation: NavigationProp<ParamListBase>;
 }
 
@@ -41,12 +41,13 @@ const estObjet = (valeur: unknown): valeur is Record<string, unknown> =>
 const obtenirChaine = (valeur: unknown): string | undefined =>
   typeof valeur === 'string' ? valeur : undefined;
 
-const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
+const EcranConnexion: React.FC<ProprietesEcranConnexion> = ({navigation}) => {
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
   const [motDePasseVisible, setMotDePasseVisible] = useState(false);
   const {
     seConnecter,
+    seConnecterAvecGoogle,
     reinitialiserMotDePasse,
     chargement,
   } = utiliserAuth();
@@ -175,6 +176,26 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
     }
   };
 
+  const gererConnexionGoogle = async () => {
+    try {
+      await seConnecterAvecGoogle();
+    } catch (erreur: unknown) {
+      const code = estObjet(erreur) ? obtenirChaine(erreur.code) : undefined;
+      const message =
+        estObjet(erreur) ? obtenirChaine(erreur.message) : undefined;
+
+      if (code === 'google/cancelled') {
+        return;
+      }
+
+      afficherAlerte(
+        'erreur',
+        'Connexion Google',
+        message ?? 'Une erreur est survenue pendant la connexion Google.',
+      );
+    }
+  };
+
   // Réinitialise la pile de navigation vers l'accueil pour éviter
   // de revenir à la connexion via le bouton retour système du téléphone
   const gererRetour = () => {
@@ -276,13 +297,8 @@ const EcranConnexion: React.FC<PropsEcranConnexion> = ({navigation}) => {
 
           <TouchableOpacity
             style={styles.boutonSecondaire}
-            onPress={() =>
-              afficherAlerte(
-                'info',
-                'Connexion Google',
-                "Pour activer la vraie connexion Google, il faut configurer Google Sign-In (SHA-1/SHA-256) dans Firebase et ajouter la dépendance native. Dis-moi quand tu es prêt et je l’implémente proprement sans casser Android/iOS.",
-              )
-            }>
+            onPress={gererConnexionGoogle}
+            disabled={chargement}>
             <Text style={styles.texteBoutonSecondaire}>Continuer avec Google</Text>
           </TouchableOpacity>
 
@@ -319,7 +335,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   texteRetour: {
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.grasse,
     fontSize: 18,
     color: theme.couleurs.texteClair,
   },
@@ -331,8 +347,7 @@ const styles = StyleSheet.create({
   },
   titre: {
     fontSize: 32,
-    fontWeight: 'bold',
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.grasse,
     marginBottom: 30,
     textAlign: 'center',
     color: theme.couleurs.texteClair,
@@ -350,7 +365,7 @@ const styles = StyleSheet.create({
   },
   // Fond semi-transparent et bordure légère pour intégrer les champs au dégradé
   input: {
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.reguliere,
     height: 50,
     borderWidth: 1,
     borderColor: theme.couleurs.champBordure,
@@ -406,27 +421,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(253, 226, 255, 0.3)',
-    backgroundColor: 'rgba(253, 226, 255, 0.08)',
+    borderColor: theme.couleurs.boutonSecondaireBordure,
+    backgroundColor: theme.couleurs.boutonSecondaireFond,
   },
   boutonDesactive: {
-    backgroundColor: '#666',
+    backgroundColor: theme.couleurs.boutonDesactiveFond,
     opacity: 0.6,
   },
   texteBouton: {
-    color: '#fff',
+    color: theme.couleurs.texte,
     fontSize: 18,
-    fontWeight: '600',
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.grasse,
   },
   texteBoutonSecondaire: {
     color: theme.couleurs.texteClair,
     fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.grasse,
   },
   lien: {
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.reguliere,
     color: theme.couleurs.texteClair,
     textAlign: 'center',
     marginTop: 20,
@@ -434,7 +447,7 @@ const styles = StyleSheet.create({
   },
   // Plus petit et aligné à droite pour être discret sans disparaître
   lienOublie: {
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.reguliere,
     color: theme.couleurs.texteClair,
     textAlign: 'right',
     marginBottom: 20,

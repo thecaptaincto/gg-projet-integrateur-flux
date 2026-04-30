@@ -60,7 +60,7 @@ npm run android
 ```
 
 Si vous voyez un écran blanc au démarrage, c’est souvent parce que le port Metro par défaut (`8081`)
-est déjà utilisé. Ce projet est configuré pour utiliser `8082` (voir `android/gradle.properties`).
+est déjà utilisé. Ce projet est configuré pour utiliser `8081` (voir `android/gradle.properties`).
 
 ## Tests
 

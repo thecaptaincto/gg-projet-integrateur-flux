@@ -25,7 +25,8 @@ export const EcranVerificationCourriel = () => {
     message: '',
   });
 
-  const fermerAlerte = () => setAlerte(prev => ({...prev, visible: false}));
+  const fermerAlerte = () =>
+    setAlerte(alertePrecedente => ({...alertePrecedente, visible: false}));
 
   const afficherAlerte = (
     type: TypeAlertePersonnalisee,
@@ -38,12 +39,12 @@ export const EcranVerificationCourriel = () => {
   const renvoyer = async () => {
     try {
       await envoyerCourrielVerification();
-    } catch (e: any) {
-      const type = e?.code === 'success' ? 'info' : 'erreur';
+    } catch (erreur: any) {
+      const type = erreur?.code === 'success' ? 'info' : 'erreur';
       afficherAlerte(
         type,
-        e?.code === 'success' ? 'Courriel envoyé' : 'Erreur',
-        e?.message ?? "Impossible d'envoyer le courriel.",
+        erreur?.code === 'success' ? 'Courriel envoyé' : 'Erreur',
+        erreur?.message ?? "Impossible d'envoyer le courriel.",
       );
     }
   };
@@ -51,11 +52,11 @@ export const EcranVerificationCourriel = () => {
   const confirmer = async () => {
     try {
       await actualiserVerificationCourriel();
-    } catch (e: any) {
+    } catch (erreur: any) {
       afficherAlerte(
         'attention',
         'Pas encore vérifié',
-        e?.message ?? "Le courriel n'est pas encore vérifié.",
+        erreur?.message ?? "Le courriel n'est pas encore vérifié.",
       );
     }
   };
@@ -83,7 +84,9 @@ export const EcranVerificationCourriel = () => {
           <View style={styles.carte}>
             <Text style={styles.label}>Étapes</Text>
             <Text style={styles.etape}>1. Ouvre ton application courriel.</Text>
-            <Text style={styles.etape}>2. Clique sur le lien de vérification Firebase.</Text>
+            <Text style={styles.etape}>
+              2. Clique sur le lien de vérification reçu.
+            </Text>
             <Text style={styles.etape}>3. Reviens dans Flux et appuie sur J&apos;ai confirmé.</Text>
 
             <TouchableOpacity
@@ -91,7 +94,7 @@ export const EcranVerificationCourriel = () => {
               disabled={chargement}
               onPress={() => void confirmer()}>
               <Text style={styles.boutonTexte}>
-                {chargement ? 'Vérification...' : "J'ai confirmé"}
+                {chargement ? 'Vérification…' : "J'ai confirmé"}
               </Text>
             </TouchableOpacity>
 

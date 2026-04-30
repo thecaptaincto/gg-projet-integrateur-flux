@@ -3,11 +3,11 @@ import {StyleSheet, View} from 'react-native';
 
 import {theme} from '../styles/theme';
 
-interface PropsIconeOeil {
+interface ProprietesIconeOeil {
   visible: boolean;
 }
 
-export const IconeOeil: React.FC<PropsIconeOeil> = ({visible}) => {
+export const IconeOeil: React.FC<ProprietesIconeOeil> = ({visible}) => {
   return (
     <View style={styles.conteneur}>
       <View style={styles.oeil}>

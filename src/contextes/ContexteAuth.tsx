@@ -1,14 +1,24 @@
 import React, {createContext, useContext, useState, useEffect, ReactNode} from 'react';
 import auth, {FirebaseAuthTypes} from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  GoogleSignin,
+  isErrorWithCode,
+  isSuccessResponse,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 
 import {
   estCourrielValide,
   estMotDePasseValideConnexion,
   estMotDePasseValideInscription,
 } from '../utils/validationFormulaire';
+import {
+  configurationGoogle,
+  googleAuthEstConfiguree,
+} from '../config/googleAuth';
 
-interface ContexteAuthType {
+interface ValeurContexteAuth {
   utilisateur: FirebaseAuthTypes.User | null;
   initialisation: boolean;
   chargement: boolean;
@@ -19,6 +29,7 @@ interface ContexteAuthType {
   envoyerCourrielVerification: () => Promise<void>;
   actualiserVerificationCourriel: () => Promise<void>;
   seConnecterAvecGoogle: () => Promise<void>;
+  rafraichirUtilisateur: () => Promise<void>;
   seDeconnecter: () => Promise<void>;
   reinitialiserMotDePasse: (email: string) => Promise<void>;
   completerPremierLancement: () => Promise<void>;
@@ -31,7 +42,7 @@ interface ContexteAuthType {
   verifierCodeAcces: (code: string) => Promise<void>;
 }
 
-const ContexteAuth = createContext<ContexteAuthType | undefined>(undefined);
+const ContexteAuth = createContext<ValeurContexteAuth | undefined>(undefined);
 
 export const FournisseurAuth = ({children}: {children: ReactNode}) => {
   const [utilisateur, setUtilisateur] = useState<FirebaseAuthTypes.User | null>(null);
@@ -46,6 +57,14 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
   const [securitePrete, setSecuritePrete] = useState(false);
 
   useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: googleAuthEstConfiguree()
+        ? configurationGoogle.webClientId
+        : undefined,
+      iosClientId: configurationGoogle.iosClientId,
+      offlineAccess: false,
+    });
+
     let desabonner = () => {};
 
     try {
@@ -56,7 +75,7 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
         setAuthPret(true);
       });
     } catch (erreur) {
-      console.error("Erreur d'initialisation Firebase Auth:", erreur);
+      console.error("Erreur d'initialisation de l'authentification Firebase :", erreur);
       setUtilisateur(null);
       setCourrielVerifie(false);
       setCodeAccesVerifie(false);
@@ -70,12 +89,12 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
 
     const chargerSecurite = async () => {
       try {
-        const [actif, codeLegacy] = await Promise.all([
+        const [actif, ancienCode] = await Promise.all([
           AsyncStorage.getItem('codeAccesActif'),
           AsyncStorage.getItem('codeAcces'),
         ]);
         setCodeAccesActif(actif === 'true');
-        codeAccesRef.current = codeLegacy ?? null;
+        codeAccesRef.current = ancienCode ?? null;
       } catch {
         // ignore
       } finally {
@@ -191,17 +210,17 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
         throw new Error('Le nom doit contenir au moins 2 caractères');
       }
 
-      const credential = await auth().createUserWithEmailAndPassword(
+      const resultatInscription = await auth().createUserWithEmailAndPassword(
         courrielNettoye,
         motDePasse,
       );
 
-      await credential.user.updateProfile({
+      await resultatInscription.user.updateProfile({
         displayName: nomNettoye,
       });
 
-      await credential.user.sendEmailVerification();
-      setCourrielVerifie(credential.user.emailVerified);
+      await resultatInscription.user.sendEmailVerification();
+      setCourrielVerifie(resultatInscription.user.emailVerified);
 
       throw {
         code: 'success',
@@ -239,12 +258,13 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
         throw new Error('Le mot de passe doit contenir au moins 6 caractères');
       }
 
-      const credential = await auth().signInWithEmailAndPassword(
+      const resultatConnexion = await auth().signInWithEmailAndPassword(
         courrielNettoye,
         motDePasseNettoye,
       );
-      await credential.user.reload();
-      const utilisateurRecharge = auth().currentUser ?? credential.user;
+      await resultatConnexion.user.reload();
+      const utilisateurRecharge =
+        auth().currentUser ?? resultatConnexion.user;
       setUtilisateur(utilisateurRecharge);
       setCourrielVerifie(utilisateurRecharge.emailVerified);
     } catch (erreur: any) {
@@ -316,14 +336,95 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
   const seConnecterAvecGoogle = async () => {
     try {
       setChargement(true);
-      throw new Error(
-        'La connexion avec Google sera disponible dans une prochaine mise à jour',
+
+      if (!googleAuthEstConfiguree()) {
+        throw new Error(
+          "La connexion Google n'est pas encore finalisée dans le code. Ajoute ton ID client Web Google dans src/config/googleAuth.ts.",
+        );
+      }
+
+      await GoogleSignin.hasPlayServices({
+        showPlayServicesUpdateDialog: true,
+      });
+
+      const reponseGoogle = await GoogleSignin.signIn();
+      if (!isSuccessResponse(reponseGoogle)) {
+        throw {code: 'google/cancelled', message: 'Connexion Google annulée.'};
+      }
+
+      const jetonIdentite = reponseGoogle.data.idToken;
+      if (!jetonIdentite) {
+        throw new Error(
+          "Google n'a pas retourné de jeton d'identité. Vérifie l'ID client Web Firebase/Google.",
+        );
+      }
+
+      const identifiantGoogle =
+        auth.GoogleAuthProvider.credential(jetonIdentite);
+      const resultatConnexionGoogle = await auth().signInWithCredential(
+        identifiantGoogle,
       );
+      await resultatConnexionGoogle.user.reload();
+      const utilisateurRecharge =
+        auth().currentUser ?? resultatConnexionGoogle.user;
+      setUtilisateur(utilisateurRecharge);
+      setCourrielVerifie(utilisateurRecharge.emailVerified);
     } catch (erreur: any) {
-      throw {code: 'error', message: erreur.message};
+      if (isErrorWithCode(erreur)) {
+        if (erreur.code === statusCodes.SIGN_IN_CANCELLED) {
+          throw {
+            code: 'google/cancelled',
+            message: 'Connexion Google annulée.',
+          };
+        }
+        if (erreur.code === statusCodes.IN_PROGRESS) {
+          throw {
+            code: 'google/in-progress',
+            message: 'Une connexion Google est déjà en cours.',
+          };
+        }
+        if (erreur.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+          throw {
+            code: 'google/play-services',
+            message:
+              'Google Play Services est absent ou obsolète sur cet appareil.',
+          };
+        }
+      }
+
+      const codeErreur = erreur?.code as string | undefined;
+      if (codeErreur === 'auth/account-exists-with-different-credential') {
+        throw {
+          code: 'error',
+          message:
+            'Un compte existe déjà avec ce courriel via une autre méthode de connexion.',
+          firebaseCode: codeErreur,
+        };
+      }
+
+      throw {
+        code: codeErreur ?? 'error',
+        message:
+          erreur?.message || 'Erreur lors de la connexion avec Google.',
+        firebaseCode: codeErreur,
+      };
     } finally {
       setChargement(false);
     }
+  };
+
+  const rafraichirUtilisateur = async () => {
+    const user = auth().currentUser;
+    if (!user) {
+      setUtilisateur(null);
+      setCourrielVerifie(false);
+      return;
+    }
+
+    await user.reload();
+    const utilisateurRecharge = auth().currentUser ?? user;
+    setUtilisateur(utilisateurRecharge);
+    setCourrielVerifie(utilisateurRecharge.emailVerified);
   };
 
   const reinitialiserMotDePasse = async (email: string) => {
@@ -339,9 +440,9 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
 
       await auth().sendPasswordResetEmail(courrielNettoye);
 
-      throw {
-        code: 'success',
-        message: `Email envoyé !\n\nUn lien de réinitialisation a été envoyé à ${courrielNettoye}. Vérifiez votre boîte de réception.`,
+        throw {
+          code: 'success',
+        message: `Courriel envoyé !\n\nUn lien de réinitialisation a été envoyé à ${courrielNettoye}. Vérifiez votre boîte de réception.`,
       };
     } catch (erreur: any) {
       if (erreur.code === 'success') {
@@ -358,9 +459,12 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
 
   const seDeconnecter = async () => {
     try {
+      try {
+        await GoogleSignin.signOut();
+      } catch {
+        // Ignore: l'utilisateur courant n'est pas forcément connecté via Google.
+      }
       await auth().signOut();
-      await AsyncStorage.removeItem('premierLancement');
-      setPremierLancement(true);
       setCourrielVerifie(false);
       setCodeAccesVerifie(false);
     } catch (erreur: any) {
@@ -448,6 +552,7 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
         envoyerCourrielVerification,
         actualiserVerificationCourriel,
         seConnecterAvecGoogle,
+        rafraichirUtilisateur,
         seDeconnecter,
         reinitialiserMotDePasse,
         completerPremierLancement,

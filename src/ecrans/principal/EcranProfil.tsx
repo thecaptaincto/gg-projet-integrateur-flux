@@ -43,6 +43,7 @@ export const EcranProfil = () => {
     utilisateur,
     courrielVerifie,
     envoyerCourrielVerification,
+    rafraichirUtilisateur,
     seDeconnecter,
     genererCodeAcces,
   } = utiliserAuth();
@@ -57,6 +58,10 @@ export const EcranProfil = () => {
     titre: '',
     message: '',
   });
+
+  React.useEffect(() => {
+    setNomProfil(utilisateur?.displayName ?? '');
+  }, [utilisateur?.displayName]);
 
   // useCallback mémoïse la fermeture pour éviter des re-rendus inutiles des composants
   // qui reçoivent cette fonction en prop (AlertePersonnalisee notamment).
@@ -194,8 +199,9 @@ export const EcranProfil = () => {
         throw new Error('Aucun utilisateur connecté.');
       }
       await user.updateProfile({displayName: nouveauNom});
-      await user.reload();
+      await rafraichirUtilisateur();
       setEditionProfilVisible(false);
+      setNomProfil(nouveauNom);
       setAlerte({
         visible: true,
         type: 'info',
@@ -328,7 +334,7 @@ export const EcranProfil = () => {
                   type: 'info',
                   titre: 'À propos',
                   message:
-                    'Flux — projet intégrateur.\n\nProchaine étape : Google Sign-In + défis Explorer.',
+                    'Flux — projet intégrateur.\n\nProchaine étape : connexion Google + défis Explorer.',
                   texteConfirmer: 'OK',
                   onConfirmer: fermerAlerte,
                   onAnnuler: fermerAlerte,

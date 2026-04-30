@@ -12,8 +12,8 @@ import type {NavigationProp, ParamListBase} from '@react-navigation/native';
 import {theme} from '../../styles/theme';
 import {validerEmail, validerMotDePasse} from '../../utils/validation';
 
-// Props reçues par le composant via React Navigation
-interface PropsEcranInscription {
+// Propriétés reçues par le composant via React Navigation
+interface ProprietesEcranInscription {
   navigation: NavigationProp<ParamListBase>;
 }
 
@@ -46,7 +46,9 @@ const estObjet = (valeur: unknown): valeur is Record<string, unknown> =>
 const obtenirChaine = (valeur: unknown): string | undefined =>
   typeof valeur === 'string' ? valeur : undefined;
 
-const EcranInscription: React.FC<PropsEcranInscription> = ({navigation}) => {
+const EcranInscription: React.FC<ProprietesEcranInscription> = ({
+  navigation,
+}) => {
   const [nom, setNom] = useState('');
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
@@ -344,7 +346,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   texteRetour: {
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.grasse,
     fontSize: 18,
     color: theme.couleurs.texteClair,
   },
@@ -356,8 +358,7 @@ const styles = StyleSheet.create({
   },
   titre: {
     fontSize: 32,
-    fontWeight: 'bold',
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.grasse,
     marginBottom: 30,
     textAlign: 'center',
     color: theme.couleurs.texteClair,
@@ -368,7 +369,7 @@ const styles = StyleSheet.create({
   },
   // Fond semi-transparent et bordure légère pour que les champs s'intègrent au dégradé
   input: {
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.reguliere,
     height: 50,
     borderWidth: 1,
     borderColor: theme.couleurs.champBordure,
@@ -419,17 +420,16 @@ const styles = StyleSheet.create({
   },
   // Grise et rend le bouton semi-transparent quand le formulaire est invalide
   boutonDesactive: {
-    backgroundColor: '#666',
+    backgroundColor: theme.couleurs.boutonDesactiveFond,
     opacity: 0.6,
   },
   texteBouton: {
-    color: '#fff',
+    color: theme.couleurs.texte,
     fontSize: 18,
-    fontWeight: '600',
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.grasse,
   },
   lien: {
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.reguliere,
     color: theme.couleurs.texteClair,
     textAlign: 'center',
     marginTop: 20,

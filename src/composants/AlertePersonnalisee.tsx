@@ -13,7 +13,14 @@ import {theme} from '../styles/theme';
 export type TypeAlerteSeverite = 'info' | 'attention' | 'avertissement' | 'erreur';
 export type TypeAlertePersonnalisee = 'confirmation' | TypeAlerteSeverite;
 
-interface PropsAlertePersonnalisee {
+// Remplacement de l'Alert natif de React Native par une modale stylisée.
+// Supporte plusieurs types sémantiques qui changent automatiquement les couleurs et l'icône :
+//   - 'confirmation'  : deux boutons (Annuler / Confirmer) pour les actions irréversibles
+//   - 'attention'     : validation / champs manquants
+//   - 'avertissement' : avertissement non bloquant
+//   - 'erreur'        : échec / erreur serveur
+//   - 'info'          : message neutre
+interface ProprietesAlertePersonnalisee {
   visible: boolean;
   type: TypeAlertePersonnalisee;
   titre: string;
@@ -24,14 +31,7 @@ interface PropsAlertePersonnalisee {
   texteAnnuler?: string;
 }
 
-// Remplacement de l'Alert natif de React Native par une modale stylisée.
-// Supporte plusieurs types sémantiques qui changent automatiquement les couleurs et l'icône :
-//   - 'confirmation'  : deux boutons (Annuler / Confirmer) pour les actions irréversibles
-//   - 'attention'     : validation / champs manquants
-//   - 'avertissement' : avertissement non bloquant
-//   - 'erreur'        : échec / erreur serveur
-//   - 'info'          : message neutre
-export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
+export const AlertePersonnalisee: React.FC<ProprietesAlertePersonnalisee> = ({
   visible,
   type,
   titre,
@@ -41,28 +41,28 @@ export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
   texteConfirmer,
   texteAnnuler,
 }) => {
-  const [fadeAnim] = React.useState(new Animated.Value(0));
+  const [animationFondu] = React.useState(new Animated.Value(0));
 
   // Animation de fondu à l'entrée et à la sortie pour éviter un affichage brutal
   React.useEffect(() => {
     if (visible) {
-      Animated.timing(fadeAnim, {
+      Animated.timing(animationFondu, {
         toValue: 1,
         duration: 200,
         useNativeDriver: true,
       }).start();
     } else {
-      Animated.timing(fadeAnim, {
+      Animated.timing(animationFondu, {
         toValue: 0,
         duration: 200,
         useNativeDriver: true,
       }).start();
     }
-  }, [fadeAnim, visible]);
+  }, [animationFondu, visible]);
 
   // Calcul mémoïsé de la configuration visuelle selon le type d'alerte.
   // useMemo évite de recalculer cet objet à chaque rendu tant que `type` ne change pas.
-  const config = React.useMemo(() => {
+  const configurationVisuelle = React.useMemo(() => {
     switch (type) {
       case 'confirmation':
         return {
@@ -141,20 +141,27 @@ export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
       visible={visible}
       animationType="fade"
       onRequestClose={gererFermer}>
-      <Animated.View style={[styles.overlay, {opacity: fadeAnim}]}>
+      <Animated.View style={[styles.surcouche, {opacity: animationFondu}]}>
         <TouchableOpacity
-          style={styles.overlayTouchable}
+          style={styles.surcoucheTouchable}
           activeOpacity={1}
           onPress={gererFermer}>
           <View style={styles.conteneurAlerte}>
             <View
-              style={[styles.carteBordure, {borderColor: config.couleurBordure}]}>
+              style={[
+                styles.carteBordure,
+                {borderColor: configurationVisuelle.couleurBordure},
+              ]}>
               <LinearGradient
-                colors={config.couleursGradient}
+                colors={configurationVisuelle.couleursGradient}
                 style={styles.carteInterieur}>
                 <View style={styles.entete}>
-                  <Text style={[styles.icone, {color: config.couleurAction}]}>
-                    {config.icone}
+                  <Text
+                    style={[
+                      styles.icone,
+                      {color: configurationVisuelle.couleurAction},
+                    ]}>
+                    {configurationVisuelle.icone}
                   </Text>
                   <Text style={styles.titre}>{titre}</Text>
                 </View>
@@ -175,7 +182,10 @@ export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
                         style={[
                           styles.bouton,
                           styles.boutonPrimaire,
-                          {backgroundColor: config.couleurAction},
+                          {
+                            backgroundColor:
+                              configurationVisuelle.couleurAction,
+                          },
                         ]}
                         onPress={onConfirmer}>
                         <Text style={styles.texteBoutonPrimaire}>
@@ -188,7 +198,9 @@ export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
                       style={[
                         styles.bouton,
                         styles.boutonPrimaire,
-                        {backgroundColor: config.couleurAction},
+                        {
+                          backgroundColor: configurationVisuelle.couleurAction,
+                        },
                       ]}
                       onPress={onConfirmer}>
                       <Text style={styles.texteBoutonPrimaire}>
@@ -207,13 +219,13 @@ export const AlertePersonnalisee: React.FC<PropsAlertePersonnalisee> = ({
 };
 
 const styles = StyleSheet.create({
-  overlay: {
+  surcouche: {
     flex: 1,
     backgroundColor: theme.couleurs.overlayModal,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  overlayTouchable: {
+  surcoucheTouchable: {
     flex: 1,
     width: '100%',
     justifyContent: 'center',

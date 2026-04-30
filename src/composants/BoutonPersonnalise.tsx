@@ -3,11 +3,11 @@ import {
   TouchableOpacity,
   Text,
   StyleSheet,
-  ViewStyle,
+  type ViewStyle,
 } from 'react-native';
 import {theme} from '../styles/theme';
 
-interface PropsBoutonPersonnalise {
+interface ProprietesBoutonPersonnalise {
   titre: string;
   auClic: () => void;
   variante?: 'primaire' | 'secondaire';
@@ -18,7 +18,7 @@ interface PropsBoutonPersonnalise {
 //   - 'primaire'   : fond rose pâle (#FDE2FF) avec texte sombre — action principale
 //   - 'secondaire' : transparent avec bordure — action secondaire ou destructrice (ex. déconnexion)
 // La prop `style` permet de surcharger la mise en page sans toucher aux couleurs.
-export const BoutonPersonnalise: React.FC<PropsBoutonPersonnalise> = ({
+export const BoutonPersonnalise: React.FC<ProprietesBoutonPersonnalise> = ({
   titre,
   auClic,
   variante = 'primaire',

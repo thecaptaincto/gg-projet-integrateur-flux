@@ -7,10 +7,16 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
-import {Dashboard, useSuiviMouvement} from '../../fonctionnalites/suiviMouvement';
+import {
+  TableauDeBordSuivi,
+  useSuiviMouvement,
+} from '../../fonctionnalites/suiviMouvement';
+import {utiliserAuth} from '../../contextes/ContexteAuth';
+import {utiliserNotifications} from '../../contextes/ContexteNotifications';
 import {theme} from '../../styles/theme';
 import {sauvegarderEntrainement} from '../../utils/stockageEntrainements';
 
@@ -25,9 +31,12 @@ function formaterDureeResume(s: number): string {
 }
 
 export const EcranSuiviMouvement = () => {
+  const {utilisateur} = utiliserAuth();
+  const {ajouterNotificationSysteme} = utiliserNotifications();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const preset = (route.params?.preset as string | undefined) ?? undefined;
+  const suggestion =
+    (route.params?.suggestion as string | undefined) ?? undefined;
   const [modeSimulation] = useState<boolean>(
     (route.params?.simulation as boolean | undefined) ?? true,
   );
@@ -53,17 +62,17 @@ export const EcranSuiviMouvement = () => {
         month: 'long',
       });
       const base = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
-      setNomEntrainement(preset ? `${preset} — ${base}` : base);
+      setNomEntrainement(suggestion ? `${suggestion} — ${base}` : base);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [preset, resumeSession]);
+  }, [suggestion, resumeSession]);
 
-  const handleSauvegarder = async () => {
+  const sauvegarderResume = async () => {
     if (!resumeSession) {
       return;
     }
     const nom = nomEntrainement.trim() || 'Entraînement';
-    await sauvegarderEntrainement({
+    await sauvegarderEntrainement(utilisateur?.uid, {
       nom,
       dateISO: new Date().toISOString(),
       dureeSecondes: resumeSession.dureeSecondes,
@@ -71,12 +80,26 @@ export const EcranSuiviMouvement = () => {
       nombrePas: resumeSession.nombrePas,
       vitesseMoyenneKmh: resumeSession.vitesseMoyenneKmh,
     });
+
+    try {
+      const notifsActivites = await AsyncStorage.getItem('notifs_activites');
+      if (notifsActivites !== 'false') {
+        await ajouterNotificationSysteme(
+          'Entraînement sauvegardé',
+          `${nom} a été enregistré avec ${resumeSession.nombrePas} pas et ${resumeSession.distanceMetres >= 1000 ? `${(resumeSession.distanceMetres / 1000).toFixed(2)} km` : `${Math.round(resumeSession.distanceMetres)} m`}.`,
+          {type: 'entrainement-sauvegarde'},
+        );
+      }
+    } catch {
+      // ignore
+    }
+
     effacerResume();
     setNomEntrainement('');
     navigation.goBack();
   };
 
-  const handleIgnorer = () => {
+  const ignorerResume = () => {
     effacerResume();
     setNomEntrainement('');
     navigation.goBack();
@@ -102,7 +125,7 @@ export const EcranSuiviMouvement = () => {
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}>
-          <Dashboard
+          <TableauDeBordSuivi
             etat={etat}
             estActif={etat.estActif}
             onDemarrer={demarrer}
@@ -150,15 +173,17 @@ export const EcranSuiviMouvement = () => {
                 placeholderTextColor={theme.couleurs.placeholder}
                 maxLength={50}
                 returnKeyType="done"
-                onSubmitEditing={handleSauvegarder}
+                onSubmitEditing={sauvegarderResume}
               />
 
               <TouchableOpacity
                 style={styles.boutonSauvegarder}
-                onPress={handleSauvegarder}>
+                onPress={sauvegarderResume}>
                 <Text style={styles.boutonSauvegarderTexte}>Sauvegarder</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.boutonIgnorer} onPress={handleIgnorer}>
+              <TouchableOpacity
+                style={styles.boutonIgnorer}
+                onPress={ignorerResume}>
                 <Text style={styles.boutonIgnorerTexte}>Ne pas sauvegarder</Text>
               </TouchableOpacity>
             </View>

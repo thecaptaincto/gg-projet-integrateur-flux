@@ -1,4 +1,5 @@
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
+const exclusionList = require('metro-config/src/defaults/exclusionList');
 
 /**
  * Metro configuration
@@ -13,18 +14,21 @@ const config = {
   // un crash interne (500) au bundling.
   maxWorkers: 1,
   resolver: {
+    // Sous Windows, on évite Watchman pour rester sur le file watcher natif.
+    // Cela réduit les sources de comportement instable sur des postes où
+    // les permissions/processus sont déjà capricieux.
+    useWatchman: false,
     // Exclure les sous-projets Expo présents dans le repo qui ne font pas
     // partie de cette application React Native CLI. Sans cette exclusion,
     // Metro tente de résoudre leurs dépendances (expo-router, expo-location…)
     // qui ne sont pas installées ici, ce qui provoque un crash interne.
-    blockList: [
-      // Ces dossiers sont des sous-projets Expo présents dans le repo
-      // mais qui ne font pas partie de cette app React Native CLI.
-      // Les regex sans slash final matchent les chemins Windows (\) et Unix (/).
-      /movement-tracker-corrige/,
-      /movement-tracker-expo/,
+    // Un seul RegExp est plus stable qu'un tableau de patterns lors du merge
+    // avec la config Metro par défaut.
+    blockList: exclusionList([
+      /movement-tracker-corrige[/\\].*/,
+      /movement-tracker-expo[/\\].*/,
       /external[/\\].*/,
-    ],
+    ]),
   },
 };
 

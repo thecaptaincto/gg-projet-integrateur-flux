@@ -12,7 +12,20 @@
           "package_name": "com.godinprojetintegrateur.flux"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "490264637112-q8q2n4p0impaa11unfdo5kcijd17hhfs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.godinprojetintegrateur.flux",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "490264637112-spbo924sivuf2oj6f4f58pr39s1obl6e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBN49_WCHTwiy_dLopsn66RDjSep3IzGVY"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "490264637112-spbo924sivuf2oj6f4f58pr39s1obl6e.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

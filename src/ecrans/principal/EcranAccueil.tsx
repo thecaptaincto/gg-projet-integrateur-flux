@@ -6,10 +6,11 @@ import {
   View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import LinearGradient from 'react-native-linear-gradient';
 import {utiliserAuth} from '../../contextes/ContexteAuth';
+import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
+import {theme} from '../../styles/theme';
 
-interface PropsEcranAccueil {
+interface ProprietesEcranAccueil {
   navigation: any;
 }
 
@@ -17,7 +18,9 @@ interface PropsEcranAccueil {
 // Chaque bouton appelle completerPremierLancement() avant la navigation afin
 // de persister l'indicateur dans AsyncStorage et ne plus afficher cet écran
 // lors des prochains démarrages.
-export const EcranAccueil: React.FC<PropsEcranAccueil> = ({navigation}) => {
+export const EcranAccueil: React.FC<ProprietesEcranAccueil> = ({
+  navigation,
+}) => {
   const {completerPremierLancement} = utiliserAuth();
 
   const gererCreerCompte = async () => {
@@ -31,14 +34,12 @@ export const EcranAccueil: React.FC<PropsEcranAccueil> = ({navigation}) => {
   };
 
   return (
-    <LinearGradient
-      colors={['#1a0024', '#3b014a', '#5c0073']}
-      style={styles.gradient}>
+    <ArrierePlanGradient style={styles.gradient}>
       <SafeAreaView style={styles.conteneur}>
         <Text style={styles.titre}>FLUX</Text>
         <Text style={styles.sousTitre}>
-          Bienvenue! :){'\n'}
-          Amusez-vous bien!
+          Suivi d’activité, progression et motivation au même endroit.{'\n'}
+          Connecte-toi ou crée ton compte pour commencer.
         </Text>
         <View style={styles.conteneurBoutons}>
           <TouchableOpacity
@@ -53,7 +54,7 @@ export const EcranAccueil: React.FC<PropsEcranAccueil> = ({navigation}) => {
           </TouchableOpacity>
         </View>
       </SafeAreaView>
-    </LinearGradient>
+    </ArrierePlanGradient>
   );
 };
 
@@ -68,44 +69,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   titre: {
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.grasse,
     fontSize: 72,
-    color: '#FFFFFF',
+    color: theme.couleurs.texte,
     marginBottom: 12,
   },
   sousTitre: {
-    fontFamily: 'LilitaOne-Regular',
-    fontSize: 28,
-    color: '#FDE2FF',
+    fontFamily: theme.polices.reguliere,
+    fontSize: 24,
+    color: theme.couleurs.texteClair,
     textAlign: 'center',
     marginBottom: 60,
-    lineHeight: 34,
+    lineHeight: 32,
   },
   conteneurBoutons: {
     width: '100%',
     gap: 20,
   },
   boutonPrimaire: {
-    backgroundColor: '#FDE2FF',
+    backgroundColor: theme.couleurs.boutonPrimaire,
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
   },
   texteBoutonPrimaire: {
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.grasse,
     fontSize: 22,
-    color: '#2a0134',
+    color: theme.couleurs.texteBoutonPrimaire,
   },
   boutonSecondaire: {
     borderWidth: 2,
-    borderColor: '#FDE2FF',
+    borderColor: theme.couleurs.boutonSecondaireBordure,
+    backgroundColor: theme.couleurs.boutonSecondaireFond,
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
   },
   texteBoutonSecondaire: {
-    fontFamily: 'LilitaOne-Regular',
+    fontFamily: theme.polices.grasse,
     fontSize: 22,
-    color: '#FDE2FF',
+    color: theme.couleurs.texteBoutonSecondaire,
   },
 });

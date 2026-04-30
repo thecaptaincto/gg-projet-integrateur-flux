@@ -5,13 +5,11 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {theme} from '../../styles/theme';
 
-// Écran de session d'activité (style Strava).
-// `edges` exclut le bord inférieur pour que la barre d'onglets soit adjacente au contenu.
 export const EcranEnregistrer = () => {
   const navigation = useNavigation<any>();
 
-  const gererDemarrer = () => {
-    navigation.navigate('SuiviMouvement');
+  const demarrer = (suggestion?: string, simulation?: boolean) => {
+    navigation.navigate('SuiviMouvement', {suggestion, simulation});
   };
 
   return (
@@ -19,19 +17,51 @@ export const EcranEnregistrer = () => {
       <SafeAreaView style={styles.conteneur} edges={['top', 'left', 'right']}>
         <View style={styles.contenu}>
           <Text style={styles.titre}>SESSION</Text>
+          <Text style={styles.sousTitre}>
+            Prépare une séance rapide ou lance directement le suivi complet.
+          </Text>
 
           <View style={styles.carteInfo}>
-            <Text style={styles.titreInfo}>Tracker mouvement et vitesse</Text>
+            <Text style={styles.titreInfo}>Suivre le mouvement et la vitesse</Text>
             <Text style={styles.texteInfo}>
-              Appuie sur Démarrer pour ouvrir le suivi en temps réel.
+              Le mode simulation est idéal pour une démo. Les capteurs réels sont
+              utiles pour une vraie session.
             </Text>
+          </View>
+
+          <View style={styles.grilleSuggestions}>
+            <TouchableOpacity
+              style={styles.carteSuggestion}
+              onPress={() => demarrer('Découverte', true)}>
+              <Text style={styles.suggestionTitre}>Démo rapide</Text>
+              <Text style={styles.suggestionTexte}>
+                Lance une session en simulation pour montrer le suivi sans te déplacer.
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.carteSuggestion}
+              onPress={() => demarrer('Course', false)}>
+              <Text style={styles.suggestionTitre}>Session réelle</Text>
+              <Text style={styles.suggestionTexte}>
+                Utilise les capteurs de l’appareil pour une sortie complète.
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.ligneBoutons}>
             <TouchableOpacity
               style={[styles.bouton, styles.boutonPrimaire]}
-              onPress={gererDemarrer}>
-              <Text style={styles.texteBoutonPrimaire}>Démarrer</Text>
+              onPress={() => demarrer('Libre', true)}>
+              <Text style={styles.texteBoutonPrimaire}>Démarrer une démo</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.ligneBoutons}>
+            <TouchableOpacity
+              style={[styles.bouton, styles.boutonSecondaire]}
+              onPress={() => demarrer('Libre', false)}>
+              <Text style={styles.texteBoutonSecondaire}>Démarrer en réel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -56,6 +86,14 @@ const styles = StyleSheet.create({
     fontFamily: theme.polices.reguliere,
     fontSize: 48,
     color: theme.couleurs.texte,
+    marginBottom: theme.espacement.sm,
+  },
+  sousTitre: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 16,
+    lineHeight: 22,
+    color: theme.couleurs.texteSecondaire,
+    textAlign: 'center',
     marginBottom: theme.espacement.xl,
   },
   carteInfo: {
@@ -78,10 +116,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.couleurs.texte,
   },
+  grilleSuggestions: {
+    width: '100%',
+    gap: theme.espacement.md,
+    marginBottom: theme.espacement.xl,
+  },
+  carteSuggestion: {
+    width: '100%',
+    backgroundColor: 'rgba(253, 226, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(253, 226, 255, 0.22)',
+    borderRadius: theme.rayonBordure.md,
+    padding: theme.espacement.lg,
+  },
+  suggestionTitre: {
+    fontFamily: theme.polices.grasse,
+    fontSize: 20,
+    color: theme.couleurs.texte,
+    marginBottom: 8,
+  },
+  suggestionTexte: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 15,
+    lineHeight: 21,
+    color: theme.couleurs.texteSecondaire,
+  },
   ligneBoutons: {
     flexDirection: 'row',
     width: '100%',
     gap: theme.espacement.md,
+    marginBottom: theme.espacement.md,
   },
   bouton: {
     flex: 1,

@@ -127,6 +127,13 @@ function patchGestureHandlerButtonKt(src) {
   return out;
 }
 
+function patchGoogleSigninModuleIndex(src) {
+  return src.replace(
+    "export { GoogleSigninButton } from './buttons/GoogleSigninButton';",
+    "export { GoogleSigninButton } from './buttons/GoogleSigninButton.js';"
+  );
+}
+
 function main() {
   const results = [];
 
@@ -158,6 +165,12 @@ function main() {
     patchFile(
       "node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/react/RNGestureHandlerButtonViewManager.kt",
       patchGestureHandlerButtonKt
+    )
+  );
+  results.push(
+    patchFile(
+      "node_modules/@react-native-google-signin/google-signin/lib/module/index.js",
+      patchGoogleSigninModuleIndex
     )
   );
 

@@ -4,6 +4,7 @@ import {useFocusEffect, useNavigation, useRoute} from '@react-navigation/native'
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {theme} from '../../styles/theme';
+import {utiliserAuth} from '../../contextes/ContexteAuth';
 import {
   chargerEntrainements,
   type EntrainementSauvegarde,
@@ -41,6 +42,7 @@ function formaterAllure(distanceMetres: number, dureeSecondes: number): string {
 type RouteParams = {id: string};
 
 export const EcranDetailEntrainement = () => {
+  const {utilisateur} = utiliserAuth();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const {id} = (route.params ?? {}) as RouteParams;
@@ -49,10 +51,10 @@ export const EcranDetailEntrainement = () => {
 
   useFocusEffect(
     useCallback(() => {
-      chargerEntrainements().then(liste => {
+      chargerEntrainements(utilisateur?.uid).then(liste => {
         setEntrainement(liste.find(e => e.id === id) ?? null);
       });
-    }, [id]),
+    }, [id, utilisateur?.uid]),
   );
 
   const derive = useMemo(() => {

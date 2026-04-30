@@ -11,6 +11,7 @@ import {useRoute} from '@react-navigation/native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {theme} from '../../styles/theme';
+import {utiliserAuth} from '../../contextes/ContexteAuth';
 import {
   chargerEntrainements,
   supprimerEntrainement,
@@ -59,6 +60,7 @@ function estDansPeriode(dateISO: string, periode: Exclude<PeriodeFiltre, 'tout'>
 }
 
 export const EcranHistorique = () => {
+  const {utilisateur} = utiliserAuth();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const [entrainements, setEntrainements] = useState<EntrainementSauvegarde[]>([]);
@@ -76,8 +78,8 @@ export const EcranHistorique = () => {
 
   useFocusEffect(
     useCallback(() => {
-      chargerEntrainements().then(setEntrainements);
-    }, []),
+      chargerEntrainements(utilisateur?.uid).then(setEntrainements);
+    }, [utilisateur?.uid]),
   );
 
   const entrainementsAffiches = useMemo(() => {
@@ -87,11 +89,11 @@ export const EcranHistorique = () => {
     return entrainements.filter(e => estDansPeriode(e.dateISO, periode));
   }, [entrainements, periode]);
 
-  const handleSupprimer = async () => {
+  const confirmerSuppression = async () => {
     if (!idASupprimer) {
       return;
     }
-    await supprimerEntrainement(idASupprimer);
+    await supprimerEntrainement(utilisateur?.uid, idASupprimer);
     setEntrainements(prev => prev.filter(e => e.id !== idASupprimer));
     setIdASupprimer(null);
   };
@@ -100,7 +102,7 @@ export const EcranHistorique = () => {
     navigation.navigate('DetailEntrainement', {id});
   };
 
-  const renderItem = ({item}: {item: EntrainementSauvegarde}) => (
+  const rendreElement = ({item}: {item: EntrainementSauvegarde}) => (
     <View style={styles.carte}>
       <View style={styles.carteEntete}>
         <Text style={styles.carteNom} numberOfLines={1}>
@@ -200,7 +202,7 @@ export const EcranHistorique = () => {
           <FlatList
             data={entrainementsAffiches}
             keyExtractor={item => item.id}
-            renderItem={renderItem}
+            renderItem={rendreElement}
             contentContainerStyle={styles.liste}
           />
         )}
@@ -212,7 +214,7 @@ export const EcranHistorique = () => {
           message="Cette action est irréversible."
           texteConfirmer="Supprimer"
           texteAnnuler="Annuler"
-          onConfirmer={handleSupprimer}
+          onConfirmer={confirmerSuppression}
           onAnnuler={() => setIdASupprimer(null)}
         />
       </SafeAreaView>
