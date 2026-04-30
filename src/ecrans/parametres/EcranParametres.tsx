@@ -23,11 +23,28 @@ interface ProprietesEcranParametres {
   navigation: any;
 }
 
+interface EtatAlerteParametres {
+  visible: boolean;
+  type: TypeAlertePersonnalisee;
+  titre: string;
+  message: string;
+  texteConfirmer?: string;
+  texteAnnuler?: string;
+  onConfirmer?: () => void;
+  onAnnuler?: () => void;
+}
+
 export const EcranParametres: React.FC<ProprietesEcranParametres> = ({
   navigation,
 }) => {
-  const {codeAccesActif, activerCodeAcces, obtenirCodeAcces, regenererCodeAcces} =
-    utiliserAuth();
+  const {
+    codeAccesActif,
+    activerCodeAcces,
+    obtenirCodeAcces,
+    regenererCodeAcces,
+    supprimerCompte,
+    chargement,
+  } = utiliserAuth();
   const {
     notificationsActivees,
     definirNotificationsActivees,
@@ -44,12 +61,12 @@ export const EcranParametres: React.FC<ProprietesEcranParametres> = ({
   const [partagerStats, setPartagerStats] = useState(true);
   const [notifsActivites, setNotifsActivites] = useState(true);
 
-  const [alerte, setAlerte] = useState<{
-    visible: boolean;
-    type: TypeAlertePersonnalisee;
-    titre: string;
-    message: string;
-  }>({visible: false, type: 'info', titre: '', message: ''});
+  const [alerte, setAlerte] = useState<EtatAlerteParametres>({
+    visible: false,
+    type: 'info',
+    titre: '',
+    message: '',
+  });
 
   const gererRetour = () => {
     if (typeof navigation?.canGoBack === 'function' && navigation.canGoBack()) {
@@ -117,9 +134,24 @@ export const EcranParametres: React.FC<ProprietesEcranParametres> = ({
     type: TypeAlertePersonnalisee,
     titre: string,
     message: string,
-  ) => setAlerte({visible: true, type, titre, message});
+  ) =>
+    setAlerte({
+      visible: true,
+      type,
+      titre,
+      message,
+      texteConfirmer: 'OK',
+      onConfirmer: fermerAlerte,
+      onAnnuler: fermerAlerte,
+    });
 
-  const fermerAlerte = () => setAlerte(etat => ({...etat, visible: false}));
+  const fermerAlerte = () =>
+    setAlerte(etat => ({
+      ...etat,
+      visible: false,
+      onConfirmer: undefined,
+      onAnnuler: undefined,
+    }));
 
   const emailUtilisateur = auth().currentUser?.email ?? '';
 
@@ -169,6 +201,40 @@ export const EcranParametres: React.FC<ProprietesEcranParametres> = ({
     } catch {
       afficherAlerte('erreur', 'Erreur', "Impossible de générer un nouveau code.");
     }
+  };
+
+  const gererSupprimerCompte = () => {
+    const confirmerSuppression = async () => {
+      fermerAlerte();
+
+      try {
+        await supprimerCompte();
+      } catch (erreur: unknown) {
+        const message =
+          typeof erreur === 'object' &&
+          erreur !== null &&
+          'message' in erreur &&
+          typeof erreur.message === 'string'
+            ? erreur.message
+            : 'Impossible de supprimer le compte.';
+
+        afficherAlerte('erreur', 'Suppression impossible', message);
+      }
+    };
+
+    setAlerte({
+      visible: true,
+      type: 'confirmation',
+      titre: 'Supprimer le compte',
+      message:
+        'Cette action est irréversible et supprimera aussi les données locales associées à ce compte. Voulez-vous continuer?',
+      texteAnnuler: 'Annuler',
+      texteConfirmer: 'Supprimer',
+      onAnnuler: fermerAlerte,
+      onConfirmer: () => {
+        void confirmerSuppression();
+      },
+    });
   };
 
   const gererNotificationsActives = async (valeur: boolean) => {
@@ -235,6 +301,17 @@ export const EcranParametres: React.FC<ProprietesEcranParametres> = ({
                   onPress={gererReinitialisationMotDePasse}>
                   <Text style={styles.texteBoutonAction}>
                     Réinitialiser le mot de passe
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.boutonAction, styles.boutonActionDanger]}
+                  onPress={gererSupprimerCompte}
+                  disabled={chargement}>
+                  <Text style={styles.texteBoutonAction}>
+                    {chargement
+                      ? 'Suppression en cours...'
+                      : 'Supprimer le compte'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -395,9 +472,10 @@ export const EcranParametres: React.FC<ProprietesEcranParametres> = ({
         type={alerte.type}
         titre={alerte.titre}
         message={alerte.message}
-        texteConfirmer="OK"
-        onConfirmer={fermerAlerte}
-        onAnnuler={fermerAlerte}
+        texteConfirmer={alerte.texteConfirmer}
+        texteAnnuler={alerte.texteAnnuler}
+        onConfirmer={alerte.onConfirmer}
+        onAnnuler={alerte.onAnnuler}
       />
     </ArrierePlanGradient>
   );
@@ -496,6 +574,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(253, 226, 255, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(253, 226, 255, 0.25)',
+  },
+  boutonActionDanger: {
+    backgroundColor: 'rgba(255, 107, 107, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.45)',
   },
   texteBoutonAction: {
     fontFamily: theme.polices.reguliere,

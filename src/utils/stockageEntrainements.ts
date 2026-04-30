@@ -87,3 +87,13 @@ export async function supprimerEntrainement(
     JSON.stringify(liste.filter(e => e.id !== id)),
   );
 }
+
+export async function supprimerTousLesEntrainements(
+  uid: string | null | undefined,
+): Promise<void> {
+  if (!uid) {
+    return;
+  }
+
+  await AsyncStorage.removeItem(obtenirCleUtilisateur(uid));
+}

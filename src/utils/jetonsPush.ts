@@ -35,3 +35,7 @@ export const supprimerJetonPushUtilisateur = async (uid: string) => {
       {merge: true},
     );
 };
+
+export const supprimerDocumentUtilisateur = async (uid: string) => {
+  await firestore().collection(COLLECTION_UTILISATEURS).doc(uid).delete();
+};

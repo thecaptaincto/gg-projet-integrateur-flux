@@ -17,6 +17,11 @@ import {
   configurationGoogle,
   googleAuthEstConfiguree,
 } from '../config/googleAuth';
+import {
+  supprimerDocumentUtilisateur,
+  supprimerJetonPushUtilisateur,
+} from '../utils/jetonsPush';
+import {supprimerTousLesEntrainements} from '../utils/stockageEntrainements';
 
 interface ValeurContexteAuth {
   utilisateur: FirebaseAuthTypes.User | null;
@@ -31,6 +36,7 @@ interface ValeurContexteAuth {
   seConnecterAvecGoogle: () => Promise<void>;
   rafraichirUtilisateur: () => Promise<void>;
   seDeconnecter: () => Promise<void>;
+  supprimerCompte: () => Promise<void>;
   reinitialiserMotDePasse: (email: string) => Promise<void>;
   completerPremierLancement: () => Promise<void>;
   genererCodeAcces: () => Promise<string>;
@@ -476,6 +482,65 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
     }
   };
 
+  const supprimerCompte = async () => {
+    try {
+      setChargement(true);
+      const user = auth().currentUser;
+
+      if (!user) {
+        throw new Error('Aucun utilisateur connecté.');
+      }
+
+      const {uid} = user;
+      const derniereConnexion = Date.parse(user.metadata.lastSignInTime ?? '');
+
+      if (
+        Number.isFinite(derniereConnexion) &&
+        Date.now() - derniereConnexion > 5 * 60 * 1000
+      ) {
+        throw {code: 'auth/requires-recent-login'};
+      }
+
+      try {
+        await supprimerJetonPushUtilisateur(uid);
+      } catch {
+        // Nettoyage distant best-effort : ne bloque pas la suppression du compte.
+      }
+
+      try {
+        await supprimerDocumentUtilisateur(uid);
+      } catch {
+        // Le document Firestore n'existe pas forcément ou peut être protégé par les règles.
+      }
+
+      try {
+        await supprimerTousLesEntrainements(uid);
+      } catch {
+        // Le compte doit pouvoir être supprimé même si le nettoyage local échoue.
+      }
+
+      await user.delete();
+      setUtilisateur(null);
+      setCourrielVerifie(false);
+      setCodeAccesVerifie(false);
+    } catch (erreur: any) {
+      const codeErreur = erreur?.code as string | undefined;
+      let message =
+        erreur?.message || 'Impossible de supprimer le compte pour le moment.';
+
+      if (codeErreur === 'auth/requires-recent-login') {
+        message =
+          'Pour supprimer ce compte, reconnecte-toi d’abord puis réessaie.';
+      } else if (codeErreur === 'auth/network-request-failed') {
+        message = 'Erreur réseau. Vérifiez votre connexion puis réessayez.';
+      }
+
+      throw {code: 'error', message, firebaseCode: codeErreur};
+    } finally {
+      setChargement(false);
+    }
+  };
+
   const completerPremierLancement = async () => {
     try {
       await AsyncStorage.setItem('premierLancement', 'false');
@@ -554,6 +619,7 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
         seConnecterAvecGoogle,
         rafraichirUtilisateur,
         seDeconnecter,
+        supprimerCompte,
         reinitialiserMotDePasse,
         completerPremierLancement,
         genererCodeAcces,
