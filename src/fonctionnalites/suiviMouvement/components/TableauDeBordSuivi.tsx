@@ -1,7 +1,14 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {theme} from '../../../styles/theme';
 import type {EtatSuivi} from '../sensors/types';
+import {
+  formaterDistance,
+  formaterDistanceKmMi,
+  formaterVitesseKmhMph,
+  formaterAllureUnite,
+  type UniteSysteme,
+} from '../utils/calculations';
 
 interface ProprietesTableauDeBordSuivi {
   etat: EtatSuivi;
@@ -58,6 +65,7 @@ export function TableauDeBordSuivi({
     altitude,
     vitesseMs,
     vitesseKmh,
+    allureSecParKm,
     nombrePasSession,
     accelerometre,
     numeroTrame,
@@ -67,10 +75,20 @@ export function TableauDeBordSuivi({
     distanceMetres,
   } = etat;
 
+  const [unite, setUnite] = useState<UniteSysteme>('metrique');
+  const basculerUnite = () => {
+    setUnite(prev => (prev === 'metrique' ? 'imperial' : 'metrique'));
+  };
+
   return (
     <View style={styles.conteneur}>
       <View style={styles.entete}>
         <Text style={styles.titre}>Suivi Mouvement</Text>
+        <Pressable style={styles.toggleUnite} onPress={basculerUnite}>
+          <Text style={styles.toggleUniteTexte}>
+            {unite === 'metrique' ? 'Métrique (km)' : 'Impérial (mi)'}
+          </Text>
+        </Pressable>
         <View style={styles.badgeRow}>
           <View
             style={[
@@ -103,11 +121,10 @@ export function TableauDeBordSuivi({
         <View style={styles.chronoBox}>
           <Text style={styles.chronoValeur}>{formaterDuree(dureeSecondes)}</Text>
           <Text style={styles.chronoLibelle}>durée</Text>
-          <Text style={styles.chronoDistance}>
-            {distanceMetres >= 1000
-              ? `${(distanceMetres / 1000).toFixed(2)} km`
-              : `${Math.round(distanceMetres)} m`}
-          </Text>
+          {(() => {
+            const {valeur, unite: u} = formaterDistance(distanceMetres, unite);
+            return <Text style={styles.chronoDistance}>{valeur} {u}</Text>;
+          })()}
         </View>
       ) : null}
 
@@ -153,13 +170,44 @@ export function TableauDeBordSuivi({
           unite="m/s"
           couleur={theme.couleurs.erreur}
         />
-        <CarteMetrique
-          titre="Vitesse"
-          valeur={vitesseKmh !== null ? vitesseKmh.toFixed(1) : '--'}
-          unite="km/h"
-          couleur={theme.couleurs.erreur}
-        />
+        {(() => {
+          const {valeur, unite: u} = formaterVitesseKmhMph(vitesseKmh, unite);
+          return (
+            <CarteMetrique
+              titre="Vitesse"
+              valeur={valeur}
+              unite={u}
+              couleur={theme.couleurs.erreur}
+            />
+          );
+        })()}
       </View>
+
+      <Text style={styles.sectionTitre}>Allure</Text>
+      {(() => {
+        const {valeur, unite: u} = formaterAllureUnite(allureSecParKm, unite);
+        return (
+          <CarteMetrique
+            titre="Allure courante"
+            valeur={valeur}
+            unite={u}
+            couleur={theme.couleurs.primaire}
+          />
+        );
+      })()}
+
+      <Text style={styles.sectionTitre}>Distance</Text>
+      {(() => {
+        const {valeur, unite: u} = formaterDistanceKmMi(distanceMetres, unite);
+        return (
+          <CarteMetrique
+            titre="Distance parcourue"
+            valeur={valeur}
+            unite={u}
+            couleur={theme.couleurs.violetAccent}
+          />
+        );
+      })()}
 
       <Text style={styles.sectionTitre}>Podomètre</Text>
       <CarteMetrique
@@ -370,5 +418,21 @@ const styles = StyleSheet.create({
     fontFamily: theme.polices.grasse,
     color: theme.couleurs.texteBoutonPrimaire,
     fontSize: 16,
+  },
+  toggleUnite: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: theme.couleurs.champFond,
+    borderRadius: theme.rayonBordure.sm,
+    borderWidth: 1,
+    borderColor: theme.couleurs.bordureTransparente,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  toggleUniteTexte: {
+    fontFamily: theme.polices.reguliere,
+    color: theme.couleurs.texte,
+    fontSize: 13,
   },
 });

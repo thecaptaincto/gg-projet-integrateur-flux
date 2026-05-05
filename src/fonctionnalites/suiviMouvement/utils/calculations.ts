@@ -130,10 +130,75 @@ export function formaterAllure(allureSecParKm: number | null): string {
   return `${minutes}:${secondes.toString().padStart(2, '0')}`;
 }
 
-/** Formate une distance en mètres : "XXX m" ou "X.XX km". */
-export function formaterDistance(metres: number): string {
-  if (metres < 1000) return `${Math.round(metres)} m`;
-  return `${(metres / 1000).toFixed(2)} km`;
+const KM_PAR_MILE = 1.609344;
+const METRES_PAR_PIED = 0.3048;
+
+export type UniteSysteme = 'metrique' | 'imperial';
+
+/** Formate une distance en mètres vers l'unité d'affichage choisie. */
+export function formaterDistance(
+  metres: number,
+  unite: UniteSysteme = 'metrique',
+): {valeur: string; unite: string} {
+  if (unite === 'imperial') {
+    const pieds = metres / METRES_PAR_PIED;
+    if (pieds < 1000) {
+      return {valeur: Math.round(pieds).toString(), unite: 'ft'};
+    }
+    const miles = metres / 1000 / KM_PAR_MILE;
+    return {valeur: miles.toFixed(2), unite: 'mi'};
+  }
+  if (metres < 1000) {
+    return {valeur: Math.round(metres).toString(), unite: 'm'};
+  }
+  return {valeur: (metres / 1000).toFixed(2), unite: 'km'};
+}
+
+/**
+ * Convertit une distance en mètres vers km ou miles uniquement (jamais m/ft),
+ * avec 2 décimales. Utile pour un affichage "longue distance" même quand la
+ * valeur est petite.
+ */
+export function formaterDistanceKmMi(
+  metres: number,
+  unite: UniteSysteme,
+): {valeur: string; unite: string} {
+  if (unite === 'imperial') {
+    const miles = metres / 1000 / KM_PAR_MILE;
+    return {valeur: miles.toFixed(2), unite: 'mi'};
+  }
+  return {valeur: (metres / 1000).toFixed(2), unite: 'km'};
+}
+
+/** Convertit une vitesse en km/h vers l'unité choisie. */
+export function formaterVitesseKmhMph(
+  kmh: number | null,
+  unite: UniteSysteme,
+): {valeur: string; unite: string} {
+  if (kmh === null) {
+    return {valeur: '--', unite: unite === 'imperial' ? 'mph' : 'km/h'};
+  }
+  if (unite === 'imperial') {
+    return {valeur: (kmh / KM_PAR_MILE).toFixed(1), unite: 'mph'};
+  }
+  return {valeur: kmh.toFixed(1), unite: 'km/h'};
+}
+
+/** Convertit une allure en sec/km vers l'unité choisie. */
+export function formaterAllureUnite(
+  secParKm: number | null,
+  unite: UniteSysteme,
+): {valeur: string; unite: string} {
+  if (secParKm === null) {
+    return {valeur: '--', unite: unite === 'imperial' ? 'min/mi' : 'min/km'};
+  }
+  const secParUnite = unite === 'imperial' ? secParKm * KM_PAR_MILE : secParKm;
+  const m = Math.floor(secParUnite / 60);
+  const s = Math.round(secParUnite % 60);
+  return {
+    valeur: `${m}:${s.toString().padStart(2, '0')}`,
+    unite: unite === 'imperial' ? 'min/mi' : 'min/km',
+  };
 }
 
 /**
