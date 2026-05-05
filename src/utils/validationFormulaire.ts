@@ -1,6 +1,8 @@
-// Utilitaires de validation des formulaires d'authentification.
-// Ces fonctions sont pures (sans effets de bord) et réutilisables dans
-// tous les écrans qui collectent des données utilisateur.
+/**
+ * Utilitaires de validation des formulaires d'authentification.
+ * Ces fonctions sont pures (sans effets de bord) et réutilisables dans
+ * tous les écrans qui collectent des données utilisateur.
+ */
 
 export const estCourrielValide = (courriel: string): boolean => {
   const courrielNettoye = courriel.trim();
@@ -11,6 +13,12 @@ export const estCourrielValide = (courriel: string): boolean => {
   // Simple et robuste pour usage client: texte@domaine.tld
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(courrielNettoye);
 };
+
+/**
+ * Alias pour compatibilité
+ * @deprecated Utiliser estCourrielValide() à la place
+ */
+export const validerEmail = estCourrielValide;
 
 // Règle allégée pour la connexion : 6 caractères suffisent,
 // car l'utilisateur a déjà créé son mot de passe selon des critères plus stricts
@@ -30,3 +38,9 @@ export const estMotDePasseValideInscription = (
   const aUnChiffre = /\d/.test(texte);
   return a8Caracteres && aUneMajuscule && aUnChiffre;
 };
+
+/**
+ * Alias pour compatibilité
+ * @deprecated Utiliser estMotDePasseValideInscription() à la place
+ */
+export const validerMotDePasse = estMotDePasseValideInscription;

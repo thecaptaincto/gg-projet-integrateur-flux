@@ -4,7 +4,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   GoogleSignin,
   isErrorWithCode,
-  isSuccessResponse,
   statusCodes,
 } from '@react-native-google-signin/google-signin';
 
@@ -17,6 +16,9 @@ import {
   configurationGoogle,
   googleAuthEstConfiguree,
 } from '../config/googleAuth';
+import { serviceChiffrement } from '../services/serviceChiffrement';
+import { serviceRateLimiting } from '../services/serviceRateLimiting';
+import { executerMigrationSecurite } from '../services/migrationSecurite';
 import {
   supprimerDocumentUtilisateur,
   supprimerJetonPushUtilisateur,
@@ -95,9 +97,12 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
 
     const chargerSecurite = async () => {
       try {
+        // ✅ Exécuter migrations de sécurité
+        await executerMigrationSecurite();
+
         const [actif, ancienCode] = await Promise.all([
           AsyncStorage.getItem('codeAccesActif'),
-          AsyncStorage.getItem('codeAcces'),
+          serviceChiffrement.charger('codeAcces'), // Chiffré
         ]);
         setCodeAccesActif(actif === 'true');
         codeAccesRef.current = ancienCode ?? null;
@@ -146,8 +151,9 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
   };
 
   const genererNouveauCodeAcces = async (): Promise<string> => {
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    await AsyncStorage.setItem('codeAcces', code);
+    // Générer 8 chiffres (100 millions de combinaisons)
+    const code = Math.floor(10000000 + Math.random() * 90000000).toString();
+    await serviceChiffrement.sauvegarder('codeAcces', code);
     codeAccesRef.current = code;
     return code;
   };
@@ -158,21 +164,22 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
   ): string => {
     const messagesInscription: Record<string, string> = {
       'auth/email-already-in-use':
-        'Cette adresse courriel est déjà utilisée. Essayez de vous connecter.',
-      'auth/invalid-email': 'Adresse courriel invalide. Vérifiez le format.',
+        'Cet courriel est déjà utilisé. Essayez de vous connecter.',
+      'auth/invalid-email': 'Veuillez entrer un courriel valide.',
       'auth/weak-password':
-        'Le mot de passe est trop faible. Utilisez au moins 8 caractères, une majuscule et un chiffre.',
+        'Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre.',
       'auth/network-request-failed':
         'Erreur réseau. Vérifiez votre connexion Internet.',
     };
 
+    // ✅ Messages génériques pour éviter l'énumération d'utilisateurs
     const messagesConnexion: Record<string, string> = {
       'auth/user-not-found':
-        "Aucun compte trouvé avec cette adresse. Créez un compte d'abord.",
-      'auth/wrong-password': 'Mot de passe incorrect. Vérifiez votre saisie.',
+        'Courriel ou mot de passe incorrect.',
+      'auth/wrong-password': 'Courriel ou mot de passe incorrect.',
       'auth/invalid-credential':
-        'Courriel ou mot de passe incorrect. Vérifiez votre saisie.',
-      'auth/invalid-email': 'Adresse courriel invalide. Vérifiez le format.',
+        'Courriel ou mot de passe incorrect.',
+      'auth/invalid-email': 'Veuillez entrer un courriel valide.',
       'auth/user-disabled': 'Ce compte a été désactivé. Contactez le support.',
       'auth/too-many-requests': 'Trop de tentatives. Réessayez plus tard.',
       'auth/network-request-failed':
@@ -180,9 +187,7 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
     };
 
     const messagesMotDePasse: Record<string, string> = {
-      'auth/user-not-found':
-        "Aucun compte trouvé avec cette adresse courriel.",
-      'auth/invalid-email': 'Adresse courriel invalide.',
+      'auth/invalid-email': 'Veuillez entrer un courriel valide.',
       'auth/network-request-failed':
         'Erreur réseau. Vérifiez votre connexion.',
     };
@@ -254,6 +259,13 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
       const courrielNettoye = email.trim().toLowerCase();
       const motDePasseNettoye = motDePasse;
 
+      // ✅ Rate limiting: protéger contre le brute force
+      if (!serviceRateLimiting.verifier(courrielNettoye, 5, 3600000)) {
+        const attente = serviceRateLimiting.obtenirDelaiAttente(courrielNettoye);
+        const secondes = Math.ceil(attente / 1000);
+        throw new Error(`Compte temporairement verrouillé. Réessayez dans ${secondes}s.`);
+      }
+
       if (!courrielNettoye || !motDePasseNettoye) {
         throw new Error('Veuillez remplir tous les champs');
       }
@@ -273,6 +285,9 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
         auth().currentUser ?? resultatConnexion.user;
       setUtilisateur(utilisateurRecharge);
       setCourrielVerifie(utilisateurRecharge.emailVerified);
+      
+      // ✅ Réinitialiser rate limit en cas de succès
+      serviceRateLimiting.reinitialiser(courrielNettoye);
     } catch (erreur: any) {
       const message = erreur.code
         ? obtenirMessageErreur(erreur.code, 'connexion')

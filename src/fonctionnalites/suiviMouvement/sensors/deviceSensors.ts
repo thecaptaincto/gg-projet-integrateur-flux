@@ -11,6 +11,10 @@
 
 import type {DonneesAccelerometre, PositionGPS} from './types';
 
+export const CAPTEURS_REELS_DISPONIBLES = false;
+export const MESSAGE_CAPTEURS_REELS_INDISPONIBLES =
+  "Le suivi avec capteurs reels n'est pas encore integre dans cette version. Utilise le mode simulation pour la demo.";
+
 export async function demanderPermissionGPS(): Promise<boolean> {
   return false;
 }
@@ -35,4 +39,3 @@ export function souscrireAccelerometre(
 ): {annuler: () => void} {
   return {annuler: () => {}};
 }
-

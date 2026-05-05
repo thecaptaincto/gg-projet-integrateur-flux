@@ -12,6 +12,10 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {utiliserAuth} from '../../contextes/ContexteAuth';
+import {
+  CAPTEURS_REELS_DISPONIBLES,
+  MESSAGE_CAPTEURS_REELS_INDISPONIBLES,
+} from '../../fonctionnalites/suiviMouvement/sensors/deviceSensors';
 import {theme} from '../../styles/theme';
 import {
   chargerEntrainements,
@@ -97,7 +101,7 @@ export const EcranExplorer = () => {
         if (v === null) {
           return;
         }
-        setModeSimulation(v === 'true');
+        setModeSimulation(CAPTEURS_REELS_DISPONIBLES ? v === 'true' : true);
       })
       .catch(() => {
         // ignore
@@ -121,9 +125,13 @@ export const EcranExplorer = () => {
   );
 
   const definirModeSimulation = async (valeur: boolean) => {
-    setModeSimulation(valeur);
+    const prochaineValeur = CAPTEURS_REELS_DISPONIBLES ? valeur : true;
+    setModeSimulation(prochaineValeur);
     try {
-      await AsyncStorage.setItem('mode_simulation', valeur ? 'true' : 'false');
+      await AsyncStorage.setItem(
+        'mode_simulation',
+        prochaineValeur ? 'true' : 'false',
+      );
     } catch {
       // ignore
     }
@@ -210,13 +218,16 @@ export const EcranExplorer = () => {
               <View style={styles.modeTexte}>
                 <Text style={styles.titreSection}>Mode de suivi</Text>
                 <Text style={styles.sousTitre}>
-                  {modeSimulation
+                  {!CAPTEURS_REELS_DISPONIBLES
+                    ? MESSAGE_CAPTEURS_REELS_INDISPONIBLES
+                    : modeSimulation
                     ? 'Simulation activée pour tester rapidement.'
                     : 'Capteurs réels activés pour un suivi complet.'}
                 </Text>
               </View>
               <Switch
                 value={modeSimulation}
+                disabled={!CAPTEURS_REELS_DISPONIBLES}
                 onValueChange={val => void definirModeSimulation(val)}
                 trackColor={{
                   false: 'rgba(253, 226, 255, 0.25)',

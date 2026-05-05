@@ -170,6 +170,8 @@ export const FournisseurNotifications = ({
     return () => abonnementEtatApp.remove();
   }, [rechargerNotifications]);
 
+  const listenersRef = useRef<Array<() => void>>([]);
+
   useEffect(() => {
     if (!notificationsActivees) {
       return;
@@ -182,19 +184,34 @@ export const FournisseurNotifications = ({
       setNotifications(liste);
     };
 
-    const desabonnerForeground = messaging().onMessage(remoteMessage => {
-      void enregistrerMessage(remoteMessage);
+    // ✅ Nettoyer les anciens listeners
+    listenersRef.current.forEach(unsub => {
+      try {
+        unsub();
+      } catch {
+        // ignore
+      }
     });
+    listenersRef.current = [];
 
-    const desabonnerOuverture = messaging().onNotificationOpenedApp(
-      remoteMessage => {
+    // Ajouter les nouveaux listeners
+    listenersRef.current.push(
+      messaging().onMessage(remoteMessage => {
         void enregistrerMessage(remoteMessage);
-      },
+      })
     );
 
-    const desabonnerJeton = messaging().onTokenRefresh(nouveauJeton => {
-      setJetonPush(nouveauJeton);
-    });
+    listenersRef.current.push(
+      messaging().onNotificationOpenedApp(remoteMessage => {
+        void enregistrerMessage(remoteMessage);
+      })
+    );
+
+    listenersRef.current.push(
+      messaging().onTokenRefresh(nouveauJeton => {
+        setJetonPush(nouveauJeton);
+      })
+    );
 
     void messaging()
       .getInitialNotification()
@@ -205,9 +222,14 @@ export const FournisseurNotifications = ({
       });
 
     return () => {
-      desabonnerForeground();
-      desabonnerOuverture();
-      desabonnerJeton();
+      listenersRef.current.forEach(unsub => {
+        try {
+          unsub();
+        } catch {
+          // ignore
+        }
+      });
+      listenersRef.current = [];
     };
   }, [notificationsActivees]);
 

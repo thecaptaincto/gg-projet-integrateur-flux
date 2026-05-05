@@ -3,6 +3,10 @@ import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
+import {
+  CAPTEURS_REELS_DISPONIBLES,
+  MESSAGE_CAPTEURS_REELS_INDISPONIBLES,
+} from '../../fonctionnalites/suiviMouvement/sensors/deviceSensors';
 import {theme} from '../../styles/theme';
 
 export const EcranEnregistrer = () => {
@@ -40,11 +44,17 @@ export const EcranEnregistrer = () => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.carteSuggestion}
+              style={[
+                styles.carteSuggestion,
+                !CAPTEURS_REELS_DISPONIBLES && styles.carteDesactivee,
+              ]}
+              disabled={!CAPTEURS_REELS_DISPONIBLES}
               onPress={() => demarrer('Course', false)}>
               <Text style={styles.suggestionTitre}>Session réelle</Text>
               <Text style={styles.suggestionTexte}>
-                Utilise les capteurs de l’appareil pour une sortie complète.
+                {CAPTEURS_REELS_DISPONIBLES
+                  ? 'Utilise les capteurs de l’appareil pour une sortie complète.'
+                  : MESSAGE_CAPTEURS_REELS_INDISPONIBLES}
               </Text>
             </TouchableOpacity>
           </View>
@@ -60,10 +70,17 @@ export const EcranEnregistrer = () => {
           <View style={styles.ligneBoutons}>
             <TouchableOpacity
               style={[styles.bouton, styles.boutonSecondaire]}
+              disabled={!CAPTEURS_REELS_DISPONIBLES}
               onPress={() => demarrer('Libre', false)}>
               <Text style={styles.texteBoutonSecondaire}>Démarrer en réel</Text>
             </TouchableOpacity>
           </View>
+
+          {!CAPTEURS_REELS_DISPONIBLES ? (
+            <Text style={styles.noteDemo}>
+              Pour l’EXPO-SIM, la version la plus fiable est le mode simulation.
+            </Text>
+          ) : null}
         </View>
       </SafeAreaView>
     </ArrierePlanGradient>
@@ -166,6 +183,9 @@ const styles = StyleSheet.create({
   boutonDesactive: {
     opacity: 0.5,
   },
+  carteDesactivee: {
+    opacity: 0.55,
+  },
   texteBoutonPrimaire: {
     fontFamily: theme.polices.reguliere,
     fontSize: 22,
@@ -175,5 +195,13 @@ const styles = StyleSheet.create({
     fontFamily: theme.polices.reguliere,
     fontSize: 22,
     color: theme.couleurs.texteClair,
+  },
+  noteDemo: {
+    marginTop: theme.espacement.sm,
+    textAlign: 'center',
+    fontFamily: theme.polices.reguliere,
+    fontSize: 14,
+    lineHeight: 20,
+    color: theme.couleurs.texteSecondaire,
   },
 });

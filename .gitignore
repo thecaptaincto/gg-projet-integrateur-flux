@@ -44,6 +44,12 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
+# 🔐 SÉCURITÉ - Fichiers à NE JAMAIS commiter
+.env
+.env.local
+.env.*.local
+!.env.example
+
 # fastlane
 #
 # It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the

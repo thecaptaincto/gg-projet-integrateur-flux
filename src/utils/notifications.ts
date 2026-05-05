@@ -20,6 +20,24 @@ type MessageDistant = RemoteMessage;
 const genererId = () =>
   `notif-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
+/**
+ * Valide qu'un objet est une NotificationFlux valide
+ */
+function estNotificationValide(obj: unknown): obj is NotificationFlux {
+  if (!obj || typeof obj !== 'object') return false;
+  const n = obj as Record<string, unknown>;
+
+  return (
+    typeof n.id === 'string' &&
+    typeof n.titre === 'string' &&
+    typeof n.message === 'string' &&
+    typeof n.dateISO === 'string' &&
+    typeof n.lue === 'boolean' &&
+    (n.source === 'push' || n.source === 'systeme') &&
+    (!n.donnees || typeof n.donnees === 'object')
+  );
+}
+
 export const creerNotificationDepuisMessage = (
   remoteMessage: MessageDistant,
 ): NotificationFlux => {
@@ -80,13 +98,15 @@ export const lireNotifications = async (): Promise<NotificationFlux[]> => {
       return [];
     }
 
-    const notifications = JSON.parse(valeur) as NotificationFlux[];
-    if (!Array.isArray(notifications)) {
+    const parsed = JSON.parse(valeur) as unknown;
+    if (!Array.isArray(parsed)) {
       return [];
     }
 
-    return notifications;
-  } catch {
+    // ✅ Valider chaque notification individuellement
+    return parsed.filter(estNotificationValide);
+  } catch (err) {
+    console.error('Erreur lecture notifications:', err);
     return [];
   }
 };

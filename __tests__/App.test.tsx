@@ -90,6 +90,24 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
   },
 }));
 
+jest.mock('react-native-config', () => ({
+  __esModule: true,
+  default: {
+    GOOGLE_WEB_CLIENT_ID: 'test-web-client-id',
+    GOOGLE_IOS_CLIENT_ID: 'test-ios-client-id',
+  },
+}));
+
+jest.mock('react-native-encrypted-storage', () => ({
+  __esModule: true,
+  default: {
+    setItem: jest.fn(async () => undefined),
+    getItem: jest.fn(async () => null),
+    removeItem: jest.fn(async () => undefined),
+    clear: jest.fn(async () => undefined),
+  },
+}));
+
 jest.mock('react-native-linear-gradient', () => ({
   __esModule: true,
   default: ({children}: {children?: React.ReactNode}) => {

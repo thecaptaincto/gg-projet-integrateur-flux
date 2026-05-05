@@ -17,6 +17,10 @@ import {
 } from '../../fonctionnalites/suiviMouvement';
 import {utiliserAuth} from '../../contextes/ContexteAuth';
 import {utiliserNotifications} from '../../contextes/ContexteNotifications';
+import {
+  CAPTEURS_REELS_DISPONIBLES,
+  MESSAGE_CAPTEURS_REELS_INDISPONIBLES,
+} from '../../fonctionnalites/suiviMouvement/sensors/deviceSensors';
 import {theme} from '../../styles/theme';
 import {sauvegarderEntrainement} from '../../utils/stockageEntrainements';
 
@@ -37,8 +41,10 @@ export const EcranSuiviMouvement = () => {
   const route = useRoute<any>();
   const suggestion =
     (route.params?.suggestion as string | undefined) ?? undefined;
+  const modeSimulationDemande =
+    (route.params?.simulation as boolean | undefined) ?? true;
   const [modeSimulation] = useState<boolean>(
-    (route.params?.simulation as boolean | undefined) ?? true,
+    CAPTEURS_REELS_DISPONIBLES ? modeSimulationDemande : true,
   );
   const [nomEntrainement, setNomEntrainement] = useState('');
   const inputRef = useRef<TextInput>(null);
@@ -125,6 +131,13 @@ export const EcranSuiviMouvement = () => {
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}>
+          {!CAPTEURS_REELS_DISPONIBLES && !modeSimulationDemande ? (
+            <View style={styles.banniereInfo}>
+              <Text style={styles.banniereInfoTexte}>
+                {MESSAGE_CAPTEURS_REELS_INDISPONIBLES}
+              </Text>
+            </View>
+          ) : null}
           <TableauDeBordSuivi
             etat={etat}
             estActif={etat.estActif}
@@ -233,6 +246,21 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingBottom: theme.espacement.xl,
+  },
+  banniereInfo: {
+    marginHorizontal: theme.espacement.lg,
+    marginBottom: theme.espacement.md,
+    backgroundColor: 'rgba(253, 226, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(253, 226, 255, 0.2)',
+    borderRadius: theme.rayonBordure.md,
+    padding: theme.espacement.md,
+  },
+  banniereInfoTexte: {
+    fontFamily: theme.polices.reguliere,
+    color: theme.couleurs.texteSecondaire,
+    fontSize: 14,
+    lineHeight: 20,
   },
   // Modal
   modalOverlay: {
