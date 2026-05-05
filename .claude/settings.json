@@ -25,7 +25,12 @@
       "Bash(curl -sL https://registry.npmjs.org/expo-constants/-/expo-constants-17.0.3.tgz)",
       "Bash(tar -xzf - package/android/build.gradle -O)",
       "Bash(node -e \"const p=require\\('./node_modules/expo-constants/package.json'\\); console.log\\(p.version\\)\")",
-      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('react-native:', p.dependencies['react-native']\\); console.log\\('react-native version:', p.dependencies['react-native']\\);\")"
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('react-native:', p.dependencies['react-native']\\); console.log\\('react-native version:', p.dependencies['react-native']\\);\")",
+      "Bash(./gradlew assembleDebug)",
+      "Bash(python -c \"import zipfile; apk=zipfile.ZipFile\\('android/app/build/outputs/apk/debug/app-debug.apk'\\); matches=[f for f in apk.namelist\\(\\) if 'bundle' in f or 'assets' in f.lower\\(\\)]; print\\('\\\\n'.join\\(matches\\)\\)\")",
+      "Bash(./gradlew assembleRelease)",
+      "Bash(adb -s R52R300Z2TL install -r \"c:/Users/sampa/gg-projet-integrateur-flux/android/app/build/outputs/apk/release/app-release.apk\")",
+      "Bash(adb install *)"
     ],
     "additionalDirectories": [
       "\\tmp"

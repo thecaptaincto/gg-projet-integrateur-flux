@@ -1,6 +1,7 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {theme} from '../../../styles/theme';
+import {formaterAllure} from '../utils/calculations';
 import type {EtatSuivi} from '../sensors/types';
 
 interface PropsDashboard {
@@ -52,6 +53,8 @@ export function Dashboard({
   onPauseReprendre,
   modeSimulation,
 }: PropsDashboard) {
+  const [uniteImperiale, setUniteImperiale] = useState(false);
+
   const {
     latitude,
     longitude,
@@ -62,6 +65,7 @@ export function Dashboard({
     nombrePasSession,
     accelerometre,
     agitation,
+    allureSecParKm,
     numeroTrame,
     erreurs,
     estEnPause,
@@ -69,10 +73,51 @@ export function Dashboard({
     distanceMetres,
   } = etat;
 
+  const allureMoyenneSecParKm =
+    distanceMetres > 50 && dureeSecondes > 0
+      ? dureeSecondes / (distanceMetres / 1000)
+      : null;
+
+  const labelUnite = uniteImperiale ? 'mi' : 'km';
+  const distanceAffichee = uniteImperiale
+    ? (distanceMetres / 1609.34).toFixed(2)
+    : (distanceMetres / 1000).toFixed(2);
+  const allureInstAffichee = formaterAllure(
+    allureSecParKm !== null
+      ? uniteImperiale ? allureSecParKm * 1.60934 : allureSecParKm
+      : null,
+  );
+  const allureMoyAffichee = formaterAllure(
+    allureMoyenneSecParKm !== null
+      ? uniteImperiale ? allureMoyenneSecParKm * 1.60934 : allureMoyenneSecParKm
+      : null,
+  );
+
   return (
     <View style={styles.conteneur}>
       <View style={styles.entete}>
-        <Text style={styles.titre}>Suivi Mouvement</Text>
+        <View style={styles.enteteLigne}>
+          <Text style={styles.titre}>Suivi Mouvement</Text>
+          <Pressable
+            style={styles.boutonUnite}
+            onPress={() => setUniteImperiale(u => !u)}>
+            <Text
+              style={[
+                styles.boutonUniteTexte,
+                !uniteImperiale && styles.boutonUniteActif,
+              ]}>
+              km
+            </Text>
+            <Text style={styles.boutonUniteSep}> / </Text>
+            <Text
+              style={[
+                styles.boutonUniteTexte,
+                uniteImperiale && styles.boutonUniteActif,
+              ]}>
+              mi
+            </Text>
+          </Pressable>
+        </View>
         <View style={styles.badgeRow}>
           <View
             style={[
@@ -169,6 +214,28 @@ export function Dashboard({
         />
       </View>
 
+      <Text style={styles.sectionTitre}>Course</Text>
+      <View style={styles.grille}>
+        <CarteMetrique
+          titre="Distance"
+          valeur={distanceAffichee}
+          unite={labelUnite}
+          couleur={theme.couleurs.primaire}
+        />
+        <CarteMetrique
+          titre={`Allure /${labelUnite}`}
+          valeur={allureInstAffichee}
+          unite={`min/${labelUnite}`}
+          couleur={theme.couleurs.primaire}
+        />
+        <CarteMetrique
+          titre={`Allure moy. /${labelUnite}`}
+          valeur={allureMoyAffichee}
+          unite={`min/${labelUnite}`}
+          couleur={theme.couleurs.primaire}
+        />
+      </View>
+
       <Text style={styles.sectionTitre}>Podomètre</Text>
       <CarteMetrique
         titre="Pas cette session"
@@ -242,6 +309,35 @@ const styles = StyleSheet.create({
   },
   entete: {
     marginBottom: theme.espacement.md,
+  },
+  enteteLigne: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  boutonUnite: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.couleurs.champFond,
+    borderRadius: theme.rayonBordure.sm,
+    borderWidth: 1,
+    borderColor: theme.couleurs.bordureTransparente,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  boutonUniteTexte: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 12,
+    color: theme.couleurs.texteSecondaire,
+  },
+  boutonUniteActif: {
+    color: theme.couleurs.violetAccent,
+    fontFamily: theme.polices.grasse,
+  },
+  boutonUniteSep: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 12,
+    color: theme.couleurs.texteSecondaire,
   },
   titre: {
     fontSize: 28,

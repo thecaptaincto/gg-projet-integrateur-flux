@@ -135,3 +135,58 @@ export function formaterDistance(metres: number): string {
   if (metres < 1000) return `${Math.round(metres)} m`;
   return `${(metres / 1000).toFixed(2)} km`;
 }
+
+/**
+ * Compteur de pas logiciel orientation-agnostique basé sur la détection de pics
+ * de magnitude d'accéléromètre. Fonctionne quelle que soit l'orientation de
+ * l'appareil car il travaille sur la magnitude nette (valeur absolue de
+ * calculerMagnitudeAccel), indépendamment de l'axe porteur de la gravité.
+ *
+ * Algorithme : quand la magnitude lissée monte au-dessus de `seuil` (enPic = true)
+ * puis redescend en dessous (enPic = false), on comptabilise un pas si le temps
+ * écoulé depuis le dernier pas est >= `intervalleMinMs`.
+ *
+ * @param seuil - Magnitude minimale en m/s² pour déclencher un pic (défaut 0.8)
+ * @param intervalleMinMs - Intervalle minimum entre deux pas en ms (défaut 280 ms ≈ 214 pas/min max)
+ */
+export function creerCompteurPas(
+  seuil = 0.8,
+  intervalleMinMs = 280,
+): {
+  ajouterEchantillon: (magnitudeMs2: number, maintenant?: number) => number;
+  obtenirTotal: () => number;
+  reinitialiser: () => void;
+} {
+  const filtre = creerFiltreMoyenneMobile(3);
+  let enPic = false;
+  let totalPas = 0;
+  let dernierPasMs = 0;
+
+  return {
+    ajouterEchantillon(magnitudeMs2, maintenant = Date.now()) {
+      filtre.ajouter(Math.abs(magnitudeMs2));
+      const lisse = filtre.moyenne();
+
+      if (!enPic && lisse >= seuil) {
+        enPic = true;
+      } else if (enPic && lisse < seuil) {
+        enPic = false;
+        if (maintenant - dernierPasMs >= intervalleMinMs) {
+          totalPas++;
+          dernierPasMs = maintenant;
+        }
+      }
+
+      return totalPas;
+    },
+    obtenirTotal() {
+      return totalPas;
+    },
+    reinitialiser() {
+      filtre.reinitialiser();
+      enPic = false;
+      totalPas = 0;
+      dernierPasMs = 0;
+    },
+  };
+}
