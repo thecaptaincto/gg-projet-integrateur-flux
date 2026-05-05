@@ -65,6 +65,7 @@ export class SourceCapteursSimules {
         longitude: lon,
         altitude: alt,
         speed,
+        accuracy: 5,
         timestamp: Date.now(),
       },
       accelerometre: {x: ax, y: ay, z: az},

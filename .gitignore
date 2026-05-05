@@ -87,3 +87,12 @@ node_modules/
 .gradle-user-home/ 
 .pp-tmp/ 
 android/app/build/ 
+
+# Claude Code
+.claude/
+
+# Fichiers de debug temporaires
+diff-*.txt
+diffs.zip
+flux-*.zip
+ancien-filtrage/

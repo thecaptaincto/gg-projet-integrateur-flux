@@ -9,6 +9,7 @@ export interface PositionGPS {
   longitude: number;
   altitude: number | null;
   speed: number | null; // m/s, peut être null si non dispo
+  accuracy: number | null; // Précision horizontale en mètres (null si inconnue)
   timestamp: number; // ms depuis epoch
 }
 
@@ -33,6 +34,7 @@ export interface EtatSuivi {
   latitude: number | null;
   longitude: number | null;
   altitude: number | null;
+  precisionGps: number | null;
 
   // Mouvement
   vitesseMs: number | null;
@@ -41,6 +43,13 @@ export interface EtatSuivi {
 
   // Accéléromètre
   accelerometre: DonneesAccelerometre | null;
+
+  // Valeurs lissées / filtrées
+  vitesseLissee: number | null;
+  vitesseLisseeKmh: number | null;
+  altitudeLissee: number | null;
+  agitation: number | null;
+  allureSecParKm: number | null;
 
   // Métadonnées
   numeroTrame: number;
