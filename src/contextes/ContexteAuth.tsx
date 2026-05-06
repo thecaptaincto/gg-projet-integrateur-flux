@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   GoogleSignin,
   isErrorWithCode,
+  isSuccessResponse,
   statusCodes,
 } from '@react-native-google-signin/google-signin';
 
@@ -51,6 +52,38 @@ interface ValeurContexteAuth {
 }
 
 const ContexteAuth = createContext<ValeurContexteAuth | undefined>(undefined);
+
+const DELAI_MAX_SUPPRESSION_CRITIQUE_MS = 15000;
+const DELAI_MAX_NETTOYAGE_COMPTE_MS = 4000;
+
+function creerErreurDelai(message: string) {
+  const erreur = new Error(message) as Error & {code: string};
+  erreur.code = 'operation/timed-out';
+  return erreur;
+}
+
+async function avecDelaiMax<T>(
+  promesse: Promise<T>,
+  delaiMs: number,
+  messageErreur: string,
+): Promise<T> {
+  let identifiantMinuteur: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    return await Promise.race([
+      promesse,
+      new Promise<T>((_, reject) => {
+        identifiantMinuteur = setTimeout(() => {
+          reject(creerErreurDelai(messageErreur));
+        }, delaiMs);
+      }),
+    ]);
+  } finally {
+    if (identifiantMinuteur) {
+      clearTimeout(identifiantMinuteur);
+    }
+  }
+}
 
 export const FournisseurAuth = ({children}: {children: ReactNode}) => {
   const [utilisateur, setUtilisateur] = useState<FirebaseAuthTypes.User | null>(null);
@@ -517,24 +550,49 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
       }
 
       try {
-        await supprimerJetonPushUtilisateur(uid);
-      } catch {
-        // Nettoyage distant best-effort : ne bloque pas la suppression du compte.
+        await avecDelaiMax(
+          supprimerJetonPushUtilisateur(uid),
+          DELAI_MAX_NETTOYAGE_COMPTE_MS,
+          'Le nettoyage du jeton push a expiré.',
+        );
+      } catch (erreur) {
+        console.warn(
+          'Suppression du jeton push incomplète pendant la suppression du compte :',
+          erreur,
+        );
       }
 
       try {
-        await supprimerDocumentUtilisateur(uid);
-      } catch {
-        // Le document Firestore n'existe pas forcément ou peut être protégé par les règles.
+        await avecDelaiMax(
+          supprimerDocumentUtilisateur(uid),
+          DELAI_MAX_NETTOYAGE_COMPTE_MS,
+          'La suppression du document utilisateur a expiré.',
+        );
+      } catch (erreur) {
+        console.warn(
+          'Suppression du document utilisateur incomplète :',
+          erreur,
+        );
       }
 
       try {
-        await supprimerTousLesEntrainements(uid);
-      } catch {
-        // Le compte doit pouvoir être supprimé même si le nettoyage local échoue.
+        await avecDelaiMax(
+          supprimerTousLesEntrainements(uid),
+          DELAI_MAX_NETTOYAGE_COMPTE_MS,
+          'Le nettoyage local des entrainements a expiré.',
+        );
+      } catch (erreur) {
+        console.warn(
+          'Suppression locale des entrainements incomplète :',
+          erreur,
+        );
       }
 
-      await user.delete();
+      await avecDelaiMax(
+        user.delete(),
+        DELAI_MAX_SUPPRESSION_CRITIQUE_MS,
+        'La suppression du compte a pris trop de temps.',
+      );
       setUtilisateur(null);
       setCourrielVerifie(false);
       setCodeAccesVerifie(false);
@@ -548,6 +606,9 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
           'Pour supprimer ce compte, reconnecte-toi d’abord puis réessaie.';
       } else if (codeErreur === 'auth/network-request-failed') {
         message = 'Erreur réseau. Vérifiez votre connexion puis réessayez.';
+      } else if (codeErreur === 'operation/timed-out') {
+        message =
+          'La suppression a pris trop de temps. Vérifiez la connexion puis réessayez.';
       }
 
       throw {code: 'error', message, firebaseCode: codeErreur};

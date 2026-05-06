@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {theme} from '../../../styles/theme';
 import type {EtatSuivi} from '../sensors/types';
 import {
@@ -13,9 +13,6 @@ import {
 interface ProprietesTableauDeBordSuivi {
   etat: EtatSuivi;
   estActif: boolean;
-  onDemarrer: () => void;
-  onArreter: () => void;
-  onPauseReprendre: () => void;
   modeSimulation: boolean;
 }
 
@@ -54,9 +51,6 @@ function CarteMetrique({
 export function TableauDeBordSuivi({
   etat,
   estActif,
-  onDemarrer,
-  onArreter,
-  onPauseReprendre,
   modeSimulation,
 }: ProprietesTableauDeBordSuivi) {
   const {
@@ -84,11 +78,11 @@ export function TableauDeBordSuivi({
     <View style={styles.conteneur}>
       <View style={styles.entete}>
         <Text style={styles.titre}>Suivi Mouvement</Text>
-        <Pressable style={styles.toggleUnite} onPress={basculerUnite}>
+        <TouchableOpacity style={styles.toggleUnite} activeOpacity={0.7} onPress={basculerUnite}>
           <Text style={styles.toggleUniteTexte}>
             {unite === 'metrique' ? 'Métrique (km)' : 'Impérial (mi)'}
           </Text>
-        </Pressable>
+        </TouchableOpacity>
         <View style={styles.badgeRow}>
           <View
             style={[
@@ -240,29 +234,6 @@ export function TableauDeBordSuivi({
         <Text style={styles.nonDispo}>Non disponible</Text>
       )}
 
-      {/* Boutons de contrôle */}
-      {!estActif ? (
-        <Pressable
-          style={[styles.bouton, {backgroundColor: theme.couleurs.boutonPrimaire}]}
-          onPress={onDemarrer}>
-          <Text style={styles.boutonTexte}>Démarrer le suivi</Text>
-        </Pressable>
-      ) : (
-        <View style={styles.boutonsActifs}>
-          <Pressable
-            style={[styles.bouton, styles.boutonDemi, {backgroundColor: theme.couleurs.champFond, borderWidth: 2, borderColor: theme.couleurs.bordureTransparente}]}
-            onPress={onPauseReprendre}>
-            <Text style={[styles.boutonTexte, {color: theme.couleurs.texte}]}>
-              {estEnPause ? 'Reprendre' : 'Pause'}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.bouton, styles.boutonDemi, {backgroundColor: theme.couleurs.erreur}]}
-            onPress={onArreter}>
-            <Text style={styles.boutonTexte}>Arrêter</Text>
-          </Pressable>
-        </View>
-      )}
     </View>
   );
 }
@@ -398,26 +369,6 @@ const styles = StyleSheet.create({
     color: theme.couleurs.erreur,
     fontSize: 12,
     marginBottom: 2,
-  },
-  boutonsActifs: {
-    flexDirection: 'row',
-    gap: theme.espacement.sm,
-    marginTop: theme.espacement.lg,
-  },
-  bouton: {
-    marginTop: theme.espacement.lg,
-    paddingVertical: theme.espacement.md,
-    borderRadius: theme.rayonBordure.md,
-    alignItems: 'center',
-  },
-  boutonDemi: {
-    flex: 1,
-    marginTop: 0,
-  },
-  boutonTexte: {
-    fontFamily: theme.polices.grasse,
-    color: theme.couleurs.texteBoutonPrimaire,
-    fontSize: 16,
   },
   toggleUnite: {
     alignSelf: 'flex-start',

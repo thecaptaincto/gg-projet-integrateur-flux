@@ -1,5 +1,11 @@
 import React from 'react';
-import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
@@ -19,7 +25,9 @@ export const EcranEnregistrer = () => {
   return (
     <ArrierePlanGradient>
       <SafeAreaView style={styles.conteneur} edges={['top', 'left', 'right']}>
-        <View style={styles.contenu}>
+        <ScrollView
+          contentContainerStyle={styles.contenu}
+          showsVerticalScrollIndicator={false}>
           <Text style={styles.titre}>SESSION</Text>
           <Text style={styles.sousTitre}>
             Prépare une séance rapide ou lance directement le suivi complet.
@@ -81,7 +89,7 @@ export const EcranEnregistrer = () => {
               Pour l’EXPO-SIM, la version la plus fiable est le mode simulation.
             </Text>
           ) : null}
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </ArrierePlanGradient>
   );
@@ -92,7 +100,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contenu: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingHorizontal: theme.espacement.lg,

@@ -97,6 +97,7 @@ export const FournisseurNotifications = ({
   const [jetonPush, setJetonPush] = useState<string | null>(null);
   const [chargement, setChargement] = useState(true);
   const dernierUidSynchronise = useRef<string | null>(null);
+  const uidPrecedent = useRef<string | null | undefined>(undefined);
 
   const rechargerNotifications = useCallback(async () => {
     const liste = await lireNotifications();
@@ -169,6 +170,24 @@ export const FournisseurNotifications = ({
 
     return () => abonnementEtatApp.remove();
   }, [rechargerNotifications]);
+
+  // Vider les notifications locales quand l'utilisateur change de compte
+  useEffect(() => {
+    const uidActuel = utilisateur?.uid ?? null;
+
+    // undefined = premier rendu, on initialise sans vider
+    if (uidPrecedent.current === undefined) {
+      uidPrecedent.current = uidActuel;
+      return;
+    }
+
+    if (uidPrecedent.current !== uidActuel) {
+      uidPrecedent.current = uidActuel;
+      void supprimerToutesLesNotifications().then(() => {
+        setNotifications([]);
+      });
+    }
+  }, [utilisateur?.uid]);
 
   const listenersRef = useRef<Array<() => void>>([]);
 

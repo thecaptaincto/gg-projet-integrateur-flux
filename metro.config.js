@@ -31,6 +31,12 @@ const config = {
       /android[/\\]app[/\\]build[/\\].*/,
       /android[/\\]build[/\\].*/,
       /\.gradle[/\\].*/,
+      /\.gradle-user-home[/\\].*/,
+      /\.android-home[/\\].*/,
+      /\.npm-cache[/\\].*/,
+      /\.pp-tmp[/\\].*/,
+      /\.tmp[/\\].*/,
+      /\.userhome[/\\].*/,
     ]),
   },
 };

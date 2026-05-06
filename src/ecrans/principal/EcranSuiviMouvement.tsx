@@ -7,9 +7,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useNavigation, useRoute} from '@react-navigation/native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {
   TableauDeBordSuivi,
@@ -23,6 +22,7 @@ import {
 } from '../../fonctionnalites/suiviMouvement/sensors/deviceSensors';
 import {theme} from '../../styles/theme';
 import {sauvegarderEntrainement} from '../../utils/stockageEntrainements';
+import {lirePreferenceNotifications} from '../../utils/notifications';
 
 function formaterDureeResume(s: number): string {
   const h = Math.floor(s / 3600);
@@ -39,6 +39,7 @@ export const EcranSuiviMouvement = () => {
   const {ajouterNotificationSysteme} = utiliserNotifications();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const insets = useSafeAreaInsets();
   const suggestion =
     (route.params?.suggestion as string | undefined) ?? undefined;
   const modeSimulationDemande =
@@ -78,18 +79,18 @@ export const EcranSuiviMouvement = () => {
       return;
     }
     const nom = nomEntrainement.trim() || 'Entraînement';
-    await sauvegarderEntrainement(utilisateur?.uid, {
-      nom,
-      dateISO: new Date().toISOString(),
-      dureeSecondes: resumeSession.dureeSecondes,
-      distanceMetres: resumeSession.distanceMetres,
-      nombrePas: resumeSession.nombrePas,
-      vitesseMoyenneKmh: resumeSession.vitesseMoyenneKmh,
-    });
-
     try {
-      const notifsActivites = await AsyncStorage.getItem('notifs_activites');
-      if (notifsActivites !== 'false') {
+      await sauvegarderEntrainement(utilisateur?.uid, {
+        nom,
+        dateISO: new Date().toISOString(),
+        dureeSecondes: resumeSession.dureeSecondes,
+        distanceMetres: resumeSession.distanceMetres,
+        nombrePas: resumeSession.nombrePas,
+        vitesseMoyenneKmh: resumeSession.vitesseMoyenneKmh,
+      });
+
+      const notifsActivees = await lirePreferenceNotifications();
+      if (notifsActivees) {
         await ajouterNotificationSysteme(
           'Entraînement sauvegardé',
           `${nom} a été enregistré avec ${resumeSession.nombrePas} pas et ${resumeSession.distanceMetres >= 1000 ? `${(resumeSession.distanceMetres / 1000).toFixed(2)} km` : `${Math.round(resumeSession.distanceMetres)} m`}.`,
@@ -97,7 +98,7 @@ export const EcranSuiviMouvement = () => {
         );
       }
     } catch {
-      // ignore
+      // ignore pour éviter de bloquer la modal
     }
 
     effacerResume();
@@ -141,12 +142,38 @@ export const EcranSuiviMouvement = () => {
           <TableauDeBordSuivi
             etat={etat}
             estActif={etat.estActif}
-            onDemarrer={demarrer}
-            onArreter={arreter}
-            onPauseReprendre={pauseReprendre}
             modeSimulation={modeSimulation}
           />
         </ScrollView>
+
+        {/* Boutons de contrôle — hors du ScrollView pour éviter les conflits de touch sur Android */}
+        <View style={[styles.footerBoutons, {paddingBottom: Math.max(insets.bottom, 16)}]}>
+          {!etat.estActif ? (
+            <TouchableOpacity
+              style={[styles.bouton, styles.boutonPrimaire]}
+              activeOpacity={0.7}
+              onPress={demarrer}>
+              <Text style={styles.boutonTexte}>Démarrer le suivi</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.boutonsActifs}>
+              <TouchableOpacity
+                style={[styles.bouton, styles.boutonDemi, styles.boutonSecondaire]}
+                activeOpacity={0.7}
+                onPress={pauseReprendre}>
+                <Text style={[styles.boutonTexte, {color: theme.couleurs.texte}]}>
+                  {etat.estEnPause ? 'Reprendre' : 'Pause'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.bouton, styles.boutonDemi, styles.boutonDanger]}
+                activeOpacity={0.7}
+                onPress={arreter}>
+                <Text style={styles.boutonTexte}>Arrêter</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
 
         {/* Modal de nommage de l'entraînement */}
         {resumeSession ? (
@@ -338,5 +365,38 @@ const styles = StyleSheet.create({
     fontFamily: theme.polices.reguliere,
     fontSize: 14,
     color: theme.couleurs.texteSecondaire,
+  },
+  footerBoutons: {
+    paddingHorizontal: theme.espacement.lg,
+    paddingVertical: theme.espacement.md,
+    backgroundColor: 'transparent',
+  },
+  bouton: {
+    paddingVertical: theme.espacement.md,
+    borderRadius: theme.rayonBordure.md,
+    alignItems: 'center',
+  },
+  boutonPrimaire: {
+    backgroundColor: theme.couleurs.boutonPrimaire,
+  },
+  boutonSecondaire: {
+    backgroundColor: theme.couleurs.champFond,
+    borderWidth: 2,
+    borderColor: theme.couleurs.bordureTransparente,
+  },
+  boutonDanger: {
+    backgroundColor: theme.couleurs.erreur,
+  },
+  boutonDemi: {
+    flex: 1,
+  },
+  boutonTexte: {
+    fontFamily: theme.polices.grasse,
+    color: theme.couleurs.texteBoutonPrimaire,
+    fontSize: 16,
+  },
+  boutonsActifs: {
+    flexDirection: 'row',
+    gap: theme.espacement.sm,
   },
 });

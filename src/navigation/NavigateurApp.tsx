@@ -1,7 +1,7 @@
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import {createMaterialTopTabNavigator} from '@react-navigation/material-top-tabs';
 import {utiliserAuth} from '../contextes/ContexteAuth';
 import {utiliserNotifications} from '../contextes/ContexteNotifications';
 import {EcranAccueil} from '../ecrans/principal/EcranAccueil';
@@ -46,7 +46,7 @@ type TypesOngletsPrincipaux = {
 
 const Pile = createNativeStackNavigator<TypesPilePrincipale>();
 
-const Onglets = createBottomTabNavigator<TypesOngletsPrincipaux>();
+const Onglets = createMaterialTopTabNavigator<TypesOngletsPrincipaux>();
 
 // Icône personnalisée pour les onglets : un point indicateur au-dessus de l'étiquette.
 // Le point devient plus grand et change de couleur lorsque l'onglet est actif.
@@ -142,9 +142,11 @@ const OngletsPrincipaux = () => {
   return (
     <Onglets.Navigator
       id="OngletsPrincipaux"
+      tabBarPosition="bottom"
       tabBar={props => <BarreOngletsBas {...props} />}
       screenOptions={{
         headerShown: false,
+        swipeEnabled: true,
       }}>
       <Onglets.Screen
         name="OngletPrincipal"

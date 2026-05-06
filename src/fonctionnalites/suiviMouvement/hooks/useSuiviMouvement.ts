@@ -247,7 +247,7 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
   }, [config.intervalleSondageMs, reinitialiserRefsSession, traiterTrame]);
 
   // -- Mode capteurs réels --
-  const demarrerCapteurs = useCallback(async (reinitialiser = true) => {
+  const demarrerCapteurs = useCallback((reinitialiser = true) => {
     if (annulerCapteursRef.current) {
       return;
     }
@@ -261,21 +261,8 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
     }
     heureDebutSegmentRef.current = Date.now();
 
-    const erreurs: string[] = [];
-
-    if (config.capteursActifs.gps) {
-      const permGPS = await demanderPermissionGPS();
-      if (!permGPS) {
-        erreurs.push('Permission GPS refusée');
-      }
-    }
-
-    if (config.capteursActifs.podometre) {
-      const podoDispo = await verifierDisponibilitePodometre();
-      if (!podoDispo) {
-        erreurs.push('Podomètre non disponible sur cet appareil');
-      }
-    }
+    // Feedback visuel immédiat avant les opérations async
+    setEtat(prev => ({...prev, estActif: true, estEnPause: false, erreurs: []}));
 
     let dernierePosition: PositionGPS | null = null;
     let derniereAccel: DonneesAccelerometre | null = null;
@@ -285,43 +272,13 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
     const filtreAltitude = creerFiltreMoyenneMobile(5);
     const filtreAgitation = creerFiltreMoyenneMobile(5);
 
-    // Accéléromètre : 10 lectures/s, alimente aussi le filtre d'agitation
     let annulerAccel: (() => void) | null = null;
-    if (config.capteursActifs.accelerometre) {
-      const sub = souscrireAccelerometre(data => {
-        derniereAccel = data;
-        const mag = calculerMagnitudeAccel(data);
-        filtreAgitation.ajouter(Math.abs(mag));
-        pasLogicielsRef.current = compteurPasLogicielRef.current.ajouterEchantillon(mag);
-        if (__DEV__) {
-          console.log('[MAG]', Math.abs(mag).toFixed(3), '| pas:', pasLogicielsRef.current);
-        }
-      }, 100);
-      annulerAccel = sub.annuler;
-    }
-
-    // Podomètre
     let annulerPodo: (() => void) | null = null;
-    if (config.capteursActifs.podometre) {
-      const sub = souscrirePodometre(pas => {
-        derniersPasRef.current = pas;
-      });
-      annulerPodo = sub.annuler;
-    }
-
-    // GPS en streaming (watchPositionAsync) au lieu de polling
     let annulerGPS: (() => void) | null = null;
-    if (config.capteursActifs.gps) {
-      const sub = await souscrirePositionGPS(
-        pos => {
-          dernierePosition = pos;
-        },
-        {timeInterval: 500, distanceInterval: 0},
-      );
-      annulerGPS = sub.annuler;
-    }
 
-    // Intervalle UI (500ms) : calcule les valeurs lissées et met à jour l'état
+    // Intervalle UI (500ms) : démarré IMMÉDIATEMENT pour que la trame, la durée
+    // et les valeurs lissées tiquent même pendant que les capteurs s'initialisent.
+    // Auparavant, un await souscrirePositionGPS lent bloquait tout le suivi.
     const intervalId = setInterval(() => {
       const trameErreurs: string[] = [];
       trameRef.current++;
@@ -529,8 +486,86 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
       annulerPodo?.();
     };
 
+    // Attacher le cleanup AVANT toute souscription async pour que arreter()
+    // / pauseReprendre() puissent toujours stopper l'intervalle même si les
+    // capteurs ne se sont pas encore inscrits.
     annulerCapteursRef.current = nettoyer;
-    setEtat(prev => ({...prev, estActif: true, estEnPause: false, erreurs}));
+
+    // Souscriptions capteurs en arrière-plan (ne bloquent pas l'intervalle UI).
+    void (async () => {
+      const erreurs: string[] = [];
+
+      // Accéléromètre (synchrone) : 10 lectures/s, alimente le filtre d'agitation
+      if (config.capteursActifs.accelerometre) {
+        try {
+          const sub = souscrireAccelerometre(data => {
+            derniereAccel = data;
+            const mag = calculerMagnitudeAccel(data);
+            filtreAgitation.ajouter(Math.abs(mag));
+            pasLogicielsRef.current =
+              compteurPasLogicielRef.current.ajouterEchantillon(mag);
+            if (__DEV__) {
+              console.log('[MAG]', Math.abs(mag).toFixed(3), '| pas:', pasLogicielsRef.current);
+            }
+          }, 100);
+          annulerAccel = sub.annuler;
+        } catch {
+          erreurs.push('Accéléromètre inaccessible');
+        }
+      }
+
+      // Podomètre (synchrone)
+      if (config.capteursActifs.podometre) {
+        try {
+          const sub = souscrirePodometre(pas => {
+            derniersPasRef.current = pas;
+          });
+          annulerPodo = sub.annuler;
+        } catch {
+          erreurs.push('Podomètre inaccessible');
+        }
+        try {
+          const podoDispo = await verifierDisponibilitePodometre();
+          if (!podoDispo) {
+            erreurs.push('Podomètre non disponible sur cet appareil');
+          }
+        } catch {
+          erreurs.push('Podomètre inaccessible');
+        }
+      }
+
+      // GPS : permission puis watchPositionAsync (async)
+      if (config.capteursActifs.gps) {
+        try {
+          const permGPS = await demanderPermissionGPS();
+          if (!permGPS) {
+            erreurs.push('Permission GPS refusée');
+          }
+        } catch {
+          erreurs.push('Impossible de demander la permission GPS');
+        }
+        try {
+          const sub = await souscrirePositionGPS(
+            pos => {
+              dernierePosition = pos;
+            },
+            {timeInterval: 500, distanceInterval: 0},
+          );
+          // Si le suivi a été arrêté pendant l'init GPS, annuler tout de suite.
+          if (annulerCapteursRef.current === nettoyer) {
+            annulerGPS = sub.annuler;
+          } else {
+            sub.annuler();
+          }
+        } catch {
+          erreurs.push('GPS non disponible sur cet appareil');
+        }
+      }
+
+      if (erreurs.length > 0 && annulerCapteursRef.current === nettoyer) {
+        setEtat(prev => ({...prev, erreurs}));
+      }
+    })();
   }, [config, reinitialiserRefsSession]);
 
   // -- Pause / Reprendre --
