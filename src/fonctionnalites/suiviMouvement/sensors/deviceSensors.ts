@@ -57,6 +57,11 @@ export async function verifierDisponibilitePodometre(): Promise<boolean> {
   return Pedometer.isAvailableAsync();
 }
 
+export async function demanderPermissionPodometre(): Promise<boolean> {
+  const {status} = await Pedometer.requestPermissionsAsync();
+  return status === 'granted';
+}
+
 export function souscrirePodometre(
   callback: (nombrePas: number) => void,
 ): {annuler: () => void} {

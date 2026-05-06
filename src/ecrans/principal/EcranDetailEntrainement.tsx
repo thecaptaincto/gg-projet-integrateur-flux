@@ -32,10 +32,12 @@ function formaterDuree(totalSecondes: number): string {
 function formaterAllure(distanceMetres: number, dureeSecondes: number): string {
   if (distanceMetres <= 0) return '--';
   const secParKm = dureeSecondes / (distanceMetres / 1000);
-  // Filtre anti-absurde (anciennes sessions sauvegardées avant le filtre GPS).
-  if (secParKm < 120 || secParKm > 1800) return '--';
-  const minutes = Math.floor(secParKm / 60);
-  const secondes = Math.round(secParKm % 60);
+  // On garde un garde-fou contre les sessions corrompues, mais on permet
+  // désormais les marches très lentes et les démos en intérieur.
+  if (secParKm < 120 || secParKm > 7200) return '--';
+  const totalSecondesArrondi = Math.round(secParKm);
+  const minutes = Math.floor(totalSecondesArrondi / 60);
+  const secondes = totalSecondesArrondi % 60;
   return `${minutes}:${String(secondes).padStart(2, '0')} /km`;
 }
 

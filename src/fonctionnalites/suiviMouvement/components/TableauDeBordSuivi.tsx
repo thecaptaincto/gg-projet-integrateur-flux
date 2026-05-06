@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Pressable, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {theme} from '../../../styles/theme';
 import type {EtatSuivi} from '../sensors/types';
 import {
@@ -13,6 +13,9 @@ import {
 interface ProprietesTableauDeBordSuivi {
   etat: EtatSuivi;
   estActif: boolean;
+  onDemarrer?: () => void;
+  onArreter?: () => void;
+  onPauseReprendre?: () => void;
   modeSimulation: boolean;
 }
 
@@ -51,6 +54,9 @@ function CarteMetrique({
 export function TableauDeBordSuivi({
   etat,
   estActif,
+  onDemarrer,
+  onArreter,
+  onPauseReprendre,
   modeSimulation,
 }: ProprietesTableauDeBordSuivi) {
   const {
@@ -59,6 +65,8 @@ export function TableauDeBordSuivi({
     altitude,
     vitesseMs,
     vitesseKmh,
+    vitesseLissee,
+    vitesseLisseeKmh,
     allureSecParKm,
     nombrePasSession,
     accelerometre,
@@ -70,20 +78,28 @@ export function TableauDeBordSuivi({
   } = etat;
 
   const [unite, setUnite] = useState<UniteSysteme>('metrique');
+  const {width} = useWindowDimensions();
   const basculerUnite = () => {
     setUnite(prev => (prev === 'metrique' ? 'imperial' : 'metrique'));
   };
+  const vitesseAfficheeMs = vitesseLissee ?? vitesseMs;
+  const vitesseAfficheeKmh = vitesseLisseeKmh ?? vitesseKmh;
+  const estTablette = width >= 768;
+  const largeurCarte = estTablette ? '31%' : '48%';
+  const largeurPleine = estTablette ? '100%' : undefined;
+  const alignementEntete = estTablette ? styles.enteteCentre : null;
+  const alignementBadgeRow = estTablette ? styles.badgeRowCentre : null;
 
   return (
     <View style={styles.conteneur}>
-      <View style={styles.entete}>
+      <View style={[styles.entete, alignementEntete]}>
         <Text style={styles.titre}>Suivi Mouvement</Text>
-        <TouchableOpacity style={styles.toggleUnite} activeOpacity={0.7} onPress={basculerUnite}>
+        <Pressable style={styles.toggleUnite} onPress={basculerUnite}>
           <Text style={styles.toggleUniteTexte}>
             {unite === 'metrique' ? 'Métrique (km)' : 'Impérial (mi)'}
           </Text>
-        </TouchableOpacity>
-        <View style={styles.badgeRow}>
+        </Pressable>
+        <View style={[styles.badgeRow, alignementBadgeRow]}>
           <View
             style={[
               styles.badge,
@@ -135,22 +151,28 @@ export function TableauDeBordSuivi({
       <Text style={styles.sectionTitre}>Position GPS</Text>
       {latitude !== null && longitude !== null ? (
         <View style={styles.grille}>
-          <CarteMetrique
-            titre="Latitude"
-            valeur={latitude.toFixed(6)}
-            couleur={theme.couleurs.violetAccent}
-          />
-          <CarteMetrique
-            titre="Longitude"
-            valeur={longitude.toFixed(6)}
-            couleur={theme.couleurs.violetAccent}
-          />
-          <CarteMetrique
-            titre="Altitude"
-            valeur={altitude !== null ? altitude.toFixed(1) : 'N/D'}
-            unite="m"
-            couleur={theme.couleurs.violetAccent}
-          />
+          <View style={[styles.carteColonne, {flexBasis: largeurCarte}]}>
+            <CarteMetrique
+              titre="Latitude"
+              valeur={latitude.toFixed(6)}
+              couleur={theme.couleurs.violetAccent}
+            />
+          </View>
+          <View style={[styles.carteColonne, {flexBasis: largeurCarte}]}>
+            <CarteMetrique
+              titre="Longitude"
+              valeur={longitude.toFixed(6)}
+              couleur={theme.couleurs.violetAccent}
+            />
+          </View>
+          <View style={[styles.carteColonne, {flexBasis: largeurCarte}]}>
+            <CarteMetrique
+              titre="Altitude"
+              valeur={altitude !== null ? altitude.toFixed(1) : 'N/D'}
+              unite="m"
+              couleur={theme.couleurs.violetAccent}
+            />
+          </View>
         </View>
       ) : (
         <Text style={styles.nonDispo}>Non disponible</Text>
@@ -158,21 +180,28 @@ export function TableauDeBordSuivi({
 
       <Text style={styles.sectionTitre}>Vitesse</Text>
       <View style={styles.grille}>
-        <CarteMetrique
-          titre="Vitesse"
-          valeur={vitesseMs !== null ? vitesseMs.toFixed(2) : '--'}
-          unite="m/s"
-          couleur={theme.couleurs.erreur}
-        />
+        <View style={[styles.carteColonne, {flexBasis: largeurCarte}]}>
+          <CarteMetrique
+            titre="Vitesse"
+            valeur={vitesseAfficheeMs !== null ? vitesseAfficheeMs.toFixed(2) : '--'}
+            unite="m/s"
+            couleur={theme.couleurs.erreur}
+          />
+        </View>
         {(() => {
-          const {valeur, unite: u} = formaterVitesseKmhMph(vitesseKmh, unite);
+          const {valeur, unite: u} = formaterVitesseKmhMph(
+            vitesseAfficheeKmh,
+            unite,
+          );
           return (
-            <CarteMetrique
-              titre="Vitesse"
-              valeur={valeur}
-              unite={u}
-              couleur={theme.couleurs.erreur}
-            />
+            <View style={[styles.carteColonne, {flexBasis: largeurCarte}]}>
+              <CarteMetrique
+                titre="Vitesse"
+                valeur={valeur}
+                unite={u}
+                couleur={theme.couleurs.erreur}
+              />
+            </View>
           );
         })()}
       </View>
@@ -181,12 +210,14 @@ export function TableauDeBordSuivi({
       {(() => {
         const {valeur, unite: u} = formaterAllureUnite(allureSecParKm, unite);
         return (
-          <CarteMetrique
-            titre="Allure courante"
-            valeur={valeur}
-            unite={u}
-            couleur={theme.couleurs.primaire}
-          />
+          <View style={[styles.carteColonne, {flexBasis: largeurPleine ?? largeurCarte}]}>
+            <CarteMetrique
+              titre="Allure courante"
+              valeur={valeur}
+              unite={u}
+              couleur={theme.couleurs.primaire}
+            />
+          </View>
         );
       })()}
 
@@ -194,57 +225,97 @@ export function TableauDeBordSuivi({
       {(() => {
         const {valeur, unite: u} = formaterDistanceKmMi(distanceMetres, unite);
         return (
-          <CarteMetrique
-            titre="Distance parcourue"
-            valeur={valeur}
-            unite={u}
-            couleur={theme.couleurs.violetAccent}
-          />
+          <View style={[styles.carteColonne, {flexBasis: largeurPleine ?? largeurCarte}]}>
+            <CarteMetrique
+              titre="Distance parcourue"
+              valeur={valeur}
+              unite={u}
+              couleur={theme.couleurs.violetAccent}
+            />
+          </View>
         );
       })()}
 
       <Text style={styles.sectionTitre}>Podomètre</Text>
-      <CarteMetrique
-        titre="Pas cette session"
-        valeur={nombrePasSession !== null ? `${nombrePasSession}` : '--'}
-        unite="pas"
-        couleur={theme.couleurs.violetAccent}
-      />
+      <View style={[styles.carteColonne, {flexBasis: largeurPleine ?? largeurCarte}]}>
+        <CarteMetrique
+          titre="Pas cette session"
+          valeur={nombrePasSession !== null ? `${nombrePasSession}` : '--'}
+          unite="pas"
+          couleur={theme.couleurs.violetAccent}
+        />
+      </View>
 
       <Text style={styles.sectionTitre}>Accéléromètre</Text>
       {accelerometre ? (
         <View style={styles.grille}>
-          <CarteMetrique
-            titre="X"
-            valeur={accelerometre.x.toFixed(3)}
-            couleur={theme.couleurs.primaire}
-          />
-          <CarteMetrique
-            titre="Y"
-            valeur={accelerometre.y.toFixed(3)}
-            couleur={theme.couleurs.primaire}
-          />
-          <CarteMetrique
-            titre="Z"
-            valeur={accelerometre.z.toFixed(3)}
-            couleur={theme.couleurs.primaire}
-          />
+          <View style={[styles.carteColonne, {flexBasis: largeurCarte}]}>
+            <CarteMetrique
+              titre="X"
+              valeur={accelerometre.x.toFixed(3)}
+              couleur={theme.couleurs.primaire}
+            />
+          </View>
+          <View style={[styles.carteColonne, {flexBasis: largeurCarte}]}>
+            <CarteMetrique
+              titre="Y"
+              valeur={accelerometre.y.toFixed(3)}
+              couleur={theme.couleurs.primaire}
+            />
+          </View>
+          <View style={[styles.carteColonne, {flexBasis: largeurCarte}]}>
+            <CarteMetrique
+              titre="Z"
+              valeur={accelerometre.z.toFixed(3)}
+              couleur={theme.couleurs.primaire}
+            />
+          </View>
         </View>
       ) : (
         <Text style={styles.nonDispo}>Non disponible</Text>
       )}
 
+      {/* Boutons de contrôle */}
+      {!estActif && onDemarrer ? (
+        <Pressable
+          style={[styles.bouton, {backgroundColor: theme.couleurs.boutonPrimaire}]}
+          onPress={onDemarrer}>
+          <Text style={styles.boutonTexte}>Démarrer le suivi</Text>
+        </Pressable>
+      ) : estActif && onPauseReprendre && onArreter ? (
+        <View style={styles.boutonsActifs}>
+          <Pressable
+            style={[styles.bouton, styles.boutonDemi, {backgroundColor: theme.couleurs.champFond, borderWidth: 2, borderColor: theme.couleurs.bordureTransparente}]}
+            onPress={onPauseReprendre}>
+            <Text style={[styles.boutonTexte, {color: theme.couleurs.texte}]}>
+              {estEnPause ? 'Reprendre' : 'Pause'}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.bouton, styles.boutonDemi, {backgroundColor: theme.couleurs.erreur}]}
+            onPress={onArreter}>
+            <Text style={styles.boutonTexte}>Arrêter</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   conteneur: {
-    flex: 1,
-    padding: theme.espacement.md,
+    width: '100%',
+    maxWidth: 960,
+    alignSelf: 'center',
+    paddingHorizontal: theme.espacement.md,
+    paddingTop: theme.espacement.md,
+    paddingBottom: theme.espacement.xl,
   },
   entete: {
     marginBottom: theme.espacement.md,
+  },
+  enteteCentre: {
+    alignItems: 'center',
   },
   titre: {
     fontSize: 28,
@@ -255,7 +326,11 @@ const styles = StyleSheet.create({
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
+  },
+  badgeRowCentre: {
+    justifyContent: 'center',
   },
   badge: {
     paddingHorizontal: 10,
@@ -272,7 +347,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.polices.reguliere,
     color: theme.couleurs.texteSecondaire,
     fontSize: 12,
-    marginLeft: 4,
   },
   chronoBox: {
     alignItems: 'center',
@@ -315,16 +389,23 @@ const styles = StyleSheet.create({
   grille: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'stretch',
+    justifyContent: 'space-between',
     gap: theme.espacement.xs,
   },
+  carteColonne: {
+    flexGrow: 1,
+  },
   carte: {
-    flex: 1,
+    width: '100%',
     minWidth: 100,
+    minHeight: 112,
     backgroundColor: theme.couleurs.champFond,
     borderRadius: theme.rayonBordure.sm,
     padding: theme.espacement.sm,
     borderLeftWidth: 3,
     borderColor: theme.couleurs.bordureTransparente,
+    justifyContent: 'center',
   },
   carteTitre: {
     fontSize: 11,
@@ -369,6 +450,30 @@ const styles = StyleSheet.create({
     color: theme.couleurs.erreur,
     fontSize: 12,
     marginBottom: 2,
+  },
+  boutonsActifs: {
+    flexDirection: 'row',
+    gap: theme.espacement.sm,
+    marginTop: theme.espacement.lg,
+    width: '100%',
+  },
+  bouton: {
+    marginTop: theme.espacement.lg,
+    width: '100%',
+    paddingVertical: theme.espacement.md,
+    borderRadius: theme.rayonBordure.md,
+    alignItems: 'center',
+    minHeight: 56,
+    justifyContent: 'center',
+  },
+  boutonDemi: {
+    flex: 1,
+    marginTop: 0,
+  },
+  boutonTexte: {
+    fontFamily: theme.polices.grasse,
+    color: theme.couleurs.texteBoutonPrimaire,
+    fontSize: 16,
   },
   toggleUnite: {
     alignSelf: 'flex-start',

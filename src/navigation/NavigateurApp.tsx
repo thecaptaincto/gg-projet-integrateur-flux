@@ -20,7 +20,9 @@ import {EcranCodeAcces} from '../ecrans/authentification/EcranCodeAcces';
 import {EcranVerificationCourriel} from '../ecrans/authentification/EcranVerificationCourriel';
 import {theme} from '../styles/theme';
 import {Text, View, StyleSheet, TouchableOpacity, ActivityIndicator} from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+} from 'react-native-safe-area-context';
 
 // Typage strict des routes pour détecter les fautes de navigation à la compilation
 type TypesPilePrincipale = {
@@ -94,10 +96,7 @@ const IconeOnglet = ({
 // Remplace la tabBar par défaut de MaterialTopTabs pour obtenir
 // un rendu visuel cohérent avec le thème violet de l'application.
 const BarreOngletsBas = ({state, navigation}: any) => {
-  const insets = useSafeAreaInsets();
   const {nombreNonLues} = utiliserNotifications();
-  // On respecte au minimum 24px de padding pour les appareils sans encoche
-  const paddingBas = Math.max(insets.bottom, 24);
 
   // Dictionnaire de traduction nom de route → étiquette affichée.
   // Découple les noms techniques des routes des libellés visibles par l'utilisateur.
@@ -110,30 +109,34 @@ const BarreOngletsBas = ({state, navigation}: any) => {
   };
 
   return (
-    <View style={[styles.barreOnglets, {paddingBottom: paddingBas}]}>
-      {/* Itération sur les routes déclarées dans OngletsPrincipaux.
-          state.index identifie l'onglet actuellement actif. */}
-      {state.routes.map((route: any, index: number) => {
-        const actif = state.index === index;
-        const etiquette = etiquettes[route.name] ?? route.name;
+    <SafeAreaView
+      edges={['bottom']}
+      style={styles.barreOngletsSafeArea}>
+      <View style={styles.barreOnglets}>
+        {/* Itération sur les routes déclarées dans OngletsPrincipaux.
+            state.index identifie l'onglet actuellement actif. */}
+        {state.routes.map((route: any, index: number) => {
+          const actif = state.index === index;
+          const etiquette = etiquettes[route.name] ?? route.name;
 
-        return (
-          <TouchableOpacity
-            key={route.key}
-            accessibilityRole="button"
-            onPress={() => navigation.navigate(route.name)}
-            style={styles.boutonOnglet}>
-            <IconeOnglet
-              etiquette={etiquette}
-              actif={actif}
-              notificationBadge={
-                route.name === 'OngletNotifications' ? nombreNonLues : 0
-              }
-            />
-          </TouchableOpacity>
-        );
-      })}
-    </View>
+          return (
+            <TouchableOpacity
+              key={route.key}
+              accessibilityRole="button"
+              onPress={() => navigation.navigate(route.name)}
+              style={styles.boutonOnglet}>
+              <IconeOnglet
+                etiquette={etiquette}
+                actif={actif}
+                notificationBadge={
+                  route.name === 'OngletNotifications' ? nombreNonLues : 0
+                }
+              />
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </SafeAreaView>
   );
 };
 
@@ -145,7 +148,6 @@ const OngletsPrincipaux = () => {
       tabBarPosition="bottom"
       tabBar={props => <BarreOngletsBas {...props} />}
       screenOptions={{
-        headerShown: false,
         swipeEnabled: true,
       }}>
       <Onglets.Screen
@@ -270,12 +272,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   // Barre sombre calquée sur la couleur de début du dégradé pour une transition visuelle fluide
+  barreOngletsSafeArea: {
+    backgroundColor: '#1a0024',
+  },
   barreOnglets: {
     backgroundColor: '#1a0024',
     borderTopWidth: 2,
     borderTopColor: 'rgba(253, 226, 255, 0.2)',
-    minHeight: 64,
-    paddingTop: 8,
+    paddingTop: 6,
+    paddingBottom: 6,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -285,7 +290,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   conteneurIconeOnglet: {
     alignItems: 'center',

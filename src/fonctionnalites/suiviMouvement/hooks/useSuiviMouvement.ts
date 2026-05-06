@@ -9,6 +9,7 @@ import type {
 import {CONFIG_DEFAUT} from '../sensors/types';
 import {
   demanderPermissionGPS,
+  demanderPermissionPodometre,
   souscrireAccelerometre,
   souscrirePodometre,
   souscrirePositionGPS,
@@ -266,6 +267,8 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
 
     let dernierePosition: PositionGPS | null = null;
     let derniereAccel: DonneesAccelerometre | null = null;
+    let dernierTickMs = Date.now();
+    let dernierNombrePasTick = 0;
 
     // Filtres de lissage
     const filtreVitesse = creerFiltreMoyenneMobile(5);
@@ -282,6 +285,12 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
     const intervalId = setInterval(() => {
       const trameErreurs: string[] = [];
       trameRef.current++;
+      const maintenant = Date.now();
+      const deltaTempsTickSecondes = Math.max(
+        (maintenant - dernierTickMs) / 1000,
+        0.001,
+      );
+      const distanceAvantAccumulation = distanceTotaleRef.current;
 
       // Sélection hardware/logiciel : le podomètre matériel est prioritaire quand il émet
       // des données. Sur les appareils où il est silencieux (ex. tablette tenue à l'horizontale),
@@ -299,23 +308,13 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
               ? pasLogicielsRef.current
               : null;
       const nombrePasActuel = nombrePasSession ?? 0;
+      const deltaPasTick = Math.max(nombrePasActuel - dernierNombrePasTick, 0);
 
       const vitesseMs = extraireVitesseMs(
         dernierePosition,
         positionPrecedenteRef.current,
         trameErreurs,
       );
-
-      // Zone morte 0.5 m/s pour ignorer le bruit GPS stationnaire (surtout en intérieur).
-      // Plafond VITESSE_MAX_PLAUSIBLE_MS : un saut GPS peut produire une vitesse absurde
-      // sur un seul tick ; on ne pollue pas le filtre de lissage pour éviter que la moyenne
-      // mobile propagée sur ~2,5 s donne une vitesse affichée irréaliste. vitesseMs brut
-      // reste intact dans setEtat.
-      let vitesseLissee: number | null = null;
-      if (vitesseMs !== null && vitesseMs <= VITESSE_MAX_PLAUSIBLE_MS) {
-        filtreVitesse.ajouter(appliquerZoneMorte(vitesseMs, 0.5));
-        vitesseLissee = filtreVitesse.moyenne();
-      }
 
       // Altitude : filtre seul (pas de zone morte)
       let altitudeLissee: number | null = null;
@@ -342,20 +341,14 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
         v => v > 0.12,
       ).length;
       const enMouvementPhysique = nombreTramesEnMouvement >= 2;
-
-      // Même si le GPS invente une vitesse (multipath), si l'accéléromètre confirme
-      // qu'on ne bouge pas physiquement, on force la vitesse à 0. C'est l'approche
-      // de Strava : l'accéléromètre est le juge final du mouvement.
-      if (!enMouvementPhysique && vitesseLissee !== null) {
-        vitesseLissee = 0;
-      }
+      const enMouvementConfirme = enMouvementPhysique || deltaPasTick > 0;
 
       const gpsFiable =
         dernierePosition !== null &&
         dernierePosition.accuracy !== null &&
         dernierePosition.accuracy <= 15;
 
-      if (gpsFiable && enMouvementPhysique) {
+      if (gpsFiable && enMouvementConfirme) {
         // CAS 1 : GPS fiable + mouvement → accumulation point à point (Strava-style)
         if (positionPrecedenteRef.current !== null) {
           const delta = calculerDistanceMetres(
@@ -379,7 +372,10 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
         // un saut artificiel si le GPS se dégrade : les pas déjà couverts par GPS
         // ne seraient sinon re-comptés dans le CAS 2 à la transition.
         pasAuDernierCheckpointPodoRef.current = nombrePasActuel;
-      } else if (enMouvementPhysique && nombrePasActuel > pasAuDernierCheckpointPodoRef.current) {
+      } else if (
+        enMouvementConfirme &&
+        nombrePasActuel > pasAuDernierCheckpointPodoRef.current
+      ) {
         // CAS 2 : GPS pas fiable mais pas qui avancent → distance via podomètre
         const nouveauxPas = nombrePasActuel - pasAuDernierCheckpointPodoRef.current;
         const distancePas = nouveauxPas * LONGUEUR_PAS_METRES;
@@ -409,6 +405,40 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
         });
       }
 
+      const deltaDistanceTick = Math.max(
+        distanceTotaleRef.current - distanceAvantAccumulation,
+        0,
+      );
+      const vitesseDistanceMs =
+        deltaDistanceTick > 0 ? deltaDistanceTick / deltaTempsTickSecondes : 0;
+      const vitessePasMs =
+        deltaPasTick > 0
+          ? (deltaPasTick * LONGUEUR_PAS_METRES) / deltaTempsTickSecondes
+          : 0;
+      const vitesseMesureeMs =
+        vitesseMs === null || vitesseMs < 0.2
+          ? Math.max(vitesseDistanceMs, vitessePasMs) || null
+          : vitesseMs;
+
+      // Zone morte abaissée à 0.2 m/s pour laisser vivre la marche lente.
+      // Quand le GPS renvoie 0 mais que la distance ou les pas avancent,
+      // on retombe sur une vitesse dérivée du déplacement réel du tick courant.
+      let vitesseLissee: number | null = null;
+      if (
+        vitesseMesureeMs !== null &&
+        vitesseMesureeMs <= VITESSE_MAX_PLAUSIBLE_MS
+      ) {
+        filtreVitesse.ajouter(appliquerZoneMorte(vitesseMesureeMs, 0.2));
+        vitesseLissee = filtreVitesse.moyenne();
+      }
+
+      // Même si le GPS invente une vitesse (multipath), si l'accéléromètre confirme
+      // qu'on ne bouge pas physiquement, on force la vitesse à 0. C'est l'approche
+      // de Strava : l'accéléromètre est le juge final du mouvement.
+      if (!enMouvementConfirme && vitesseLissee !== null) {
+        vitesseLissee = 0;
+      }
+
       // Met à jour positionPrecedenteRef à chaque trame (pour le calcul de vitesse Haversine fallback)
       if (dernierePosition) {
         positionPrecedenteRef.current = dernierePosition;
@@ -429,7 +459,6 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
           : null;
 
       // Fenêtre glissante 20s (Strava-style) : allure instantanée fiable sans inverser 1/v
-      const maintenant = Date.now();
       if (enMouvementPhysique) {
         bufferAllureRef.current.push({timestamp: maintenant, distance: distanceTotaleRef.current});
       }
@@ -477,6 +506,8 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
         estActif: true,
         estEnPause: false,
       });
+      dernierTickMs = maintenant;
+      dernierNombrePasTick = nombrePasActuel;
     }, 500);
 
     const nettoyer = () => {
@@ -517,12 +548,14 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
       // Podomètre (synchrone)
       if (config.capteursActifs.podometre) {
         try {
-          const sub = souscrirePodometre(pas => {
-            derniersPasRef.current = pas;
-          });
-          annulerPodo = sub.annuler;
+          const permPodo = await demanderPermissionPodometre();
+          if (!permPodo) {
+            erreurs.push("Permission d'activité physique refusée");
+          }
         } catch {
-          erreurs.push('Podomètre inaccessible');
+          erreurs.push(
+            "Impossible de demander la permission d'activité physique",
+          );
         }
         try {
           const podoDispo = await verifierDisponibilitePodometre();
@@ -531,6 +564,23 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
           }
         } catch {
           erreurs.push('Podomètre inaccessible');
+        }
+        if (
+          !erreurs.includes("Permission d'activité physique refusée") &&
+          !erreurs.includes(
+            "Impossible de demander la permission d'activité physique",
+          ) &&
+          !erreurs.includes('Podomètre non disponible sur cet appareil') &&
+          !erreurs.includes('Podomètre inaccessible')
+        ) {
+          try {
+            const sub = souscrirePodometre(pas => {
+              derniersPasRef.current = pas;
+            });
+            annulerPodo = sub.annuler;
+          } catch {
+            erreurs.push('Podomètre inaccessible');
+          }
         }
       }
 

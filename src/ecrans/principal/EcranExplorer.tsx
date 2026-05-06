@@ -185,7 +185,7 @@ export const EcranExplorer = () => {
 
   return (
     <ArrierePlanGradient>
-      <SafeAreaView style={styles.conteneur}>
+      <SafeAreaView style={styles.conteneur} edges={['top', 'left', 'right']}>
         <ScrollView
           contentContainerStyle={styles.contenuScroll}
           showsVerticalScrollIndicator={false}>

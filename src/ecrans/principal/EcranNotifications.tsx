@@ -100,7 +100,7 @@ export const EcranNotifications = () => {
 
   return (
     <ArrierePlanGradient>
-      <SafeAreaView style={styles.conteneur}>
+      <SafeAreaView style={styles.conteneur} edges={['top', 'left', 'right']}>
         <ScrollView contentContainerStyle={styles.contenuScroll}>
           <View style={styles.entete}>
             <Text style={styles.titre}>NOTIFICATIONS</Text>
