@@ -3,6 +3,7 @@ import type {
   ConfigSuivi,
   DonneesAccelerometre,
   EtatSuivi,
+  PointTrace,
   PositionGPS,
   ResumeSuivi,
 } from '../sensors/types';
@@ -20,8 +21,10 @@ import {
   appliquerZoneMorte,
   calculerDistanceMetres,
   calculerMagnitudeAccel,
+  calculerDistanceTrace,
   creerCompteurPas,
   creerFiltreMoyenneMobile,
+  cumulerDenivele,
   extraireVitesseMs,
   msVersKmh,
   vitesseVersAllure,
@@ -52,6 +55,9 @@ const ETAT_INITIAL: EtatSuivi = {
   estEnPause: false,
   dureeSecondes: 0,
   distanceMetres: 0,
+  denivelePositifMetres: 0,
+  deniveleNegatifMetres: 0,
+  traceParcours: [],
 };
 
 // Filtre anti-absurde : vitesse maximale plausible (m/s) pour la course.
@@ -61,6 +67,9 @@ const VITESSE_MAX_PLAUSIBLE_MS = 8;
 // Longueur de pas moyenne pour un adulte qui marche (en mètres).
 // Valeur utilisée en fallback intérieur quand le GPS est imprécis.
 const LONGUEUR_PAS_METRES = 0.7;
+const DISTANCE_MIN_TRACE_METRES = 3;
+const DELAI_MAX_TRACE_MS = 5_000;
+const TAILLE_MAX_TRACE = 1000;
 
 export function useSuiviMouvement(options: OptionsHook = {}) {
   const {config = CONFIG_DEFAUT, simulation = false} = options;
@@ -73,6 +82,9 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
   const pasDepartRef = useRef<number | null>(null);
   const trameRef = useRef(0);
   const distanceTotaleRef = useRef(0);
+  const denivelePositifRef = useRef(0);
+  const deniveleNegatifRef = useRef(0);
+  const traceParcoursRef = useRef<PointTrace[]>([]);
   const heureDebutSegmentRef = useRef<number | null>(null);
   const dureeAccumuleeRef = useRef(0);
   const pasAccumulesRef = useRef<number>(0);
@@ -104,6 +116,46 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
     (heureDebutSegmentRef.current
       ? (Date.now() - heureDebutSegmentRef.current) / 1000
       : 0);
+
+  const enregistrerPointTrace = useCallback((position: PositionGPS | null) => {
+    if (!position) {
+      return;
+    }
+
+    const point: PointTrace = {
+      latitude: position.latitude,
+      longitude: position.longitude,
+      altitude: position.altitude,
+      timestamp: position.timestamp,
+    };
+
+    const dernierPoint =
+      traceParcoursRef.current[traceParcoursRef.current.length - 1] ?? null;
+
+    if (!dernierPoint) {
+      traceParcoursRef.current = [point];
+      return;
+    }
+
+    const distance = calculerDistanceTrace(dernierPoint, point);
+    const deltaTemps = point.timestamp - dernierPoint.timestamp;
+    const {gain, perte} = cumulerDenivele(dernierPoint.altitude, point.altitude);
+
+    if (
+      distance < DISTANCE_MIN_TRACE_METRES &&
+      deltaTemps < DELAI_MAX_TRACE_MS &&
+      gain === 0 &&
+      perte === 0
+    ) {
+      return;
+    }
+
+    denivelePositifRef.current += gain;
+    deniveleNegatifRef.current += perte;
+    traceParcoursRef.current = [...traceParcoursRef.current, point].slice(
+      -TAILLE_MAX_TRACE,
+    );
+  }, []);
 
   // -- traiterTrame : utilisé uniquement par le mode simulation --
   // En mode réel, les filtres et le checkpoint sont calculés dans demarrerCapteurs.
@@ -180,6 +232,8 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
           }
           positionPrecedenteRef.current = position;
         }
+
+        enregistrerPointTrace(position);
       }
 
       const dureeSecondes = Math.round(dureeSecondesCourantes());
@@ -204,10 +258,13 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
         estEnPause: false,
         dureeSecondes,
         distanceMetres: distanceTotaleRef.current,
+        denivelePositifMetres: denivelePositifRef.current,
+        deniveleNegatifMetres: deniveleNegatifRef.current,
+        traceParcours: traceParcoursRef.current,
       });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [enregistrerPointTrace],
   );
 
   const reinitialiserRefsSession = useCallback(() => {
@@ -215,6 +272,9 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
     pasDepartRef.current = null;
     trameRef.current = 0;
     distanceTotaleRef.current = 0;
+    denivelePositifRef.current = 0;
+    deniveleNegatifRef.current = 0;
+    traceParcoursRef.current = [];
     dureeAccumuleeRef.current = 0;
     heureDebutSegmentRef.current = null;
     estEnPauseRef.current = false;
@@ -442,6 +502,7 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
       // Met à jour positionPrecedenteRef à chaque trame (pour le calcul de vitesse Haversine fallback)
       if (dernierePosition) {
         positionPrecedenteRef.current = dernierePosition;
+        enregistrerPointTrace(dernierePosition);
       }
 
       if (__DEV__) {
@@ -501,6 +562,9 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
         allureSecParKm: allureAffichee,
         distanceMetres: distanceTotaleRef.current,
         dureeSecondes: Math.round(dureeSecondesCourantes()),
+        denivelePositifMetres: denivelePositifRef.current,
+        deniveleNegatifMetres: deniveleNegatifRef.current,
+        traceParcours: traceParcoursRef.current,
         numeroTrame: trameRef.current,
         erreurs: trameErreurs,
         estActif: true,
@@ -616,7 +680,7 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
         setEtat(prev => ({...prev, erreurs}));
       }
     })();
-  }, [config, reinitialiserRefsSession]);
+  }, [config, enregistrerPointTrace, reinitialiserRefsSession]);
 
   // -- Pause / Reprendre --
   const pauseReprendre = useCallback(() => {
@@ -686,6 +750,9 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
       distanceMetres: distanceFinale,
       nombrePas: pasFinaux,
       vitesseMoyenneKmh: vitesseMoy,
+      denivelePositifMetres: denivelePositifRef.current,
+      deniveleNegatifMetres: deniveleNegatifRef.current,
+      traceParcours: traceParcoursRef.current,
     };
 
     simulRef.current?.arreter();

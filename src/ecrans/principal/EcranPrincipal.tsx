@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.polices.reguliere,
     fontSize: 15,
     color: theme.couleurs.placeholder,
-    fontStyle: 'italic',
+    opacity: 0.75,
     paddingVertical: theme.espacement.md,
   },
   grilleStats: {

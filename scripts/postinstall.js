@@ -173,7 +173,6 @@ function main() {
       patchGoogleSigninModuleIndex
     )
   );
-
   const changed = results.filter((r) => r.changed).length;
   const skipped = results.filter((r) => r.skipped).length;
   console.log(`[postinstall] Done. Changed=${changed}, Skipped=${skipped}`);

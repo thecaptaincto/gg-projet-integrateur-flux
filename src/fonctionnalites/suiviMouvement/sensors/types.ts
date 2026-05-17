@@ -13,6 +13,13 @@ export interface PositionGPS {
   timestamp: number; // ms depuis epoch
 }
 
+export interface PointTrace {
+  latitude: number;
+  longitude: number;
+  altitude: number | null;
+  timestamp: number;
+}
+
 /** Données de l'accéléromètre */
 export interface DonneesAccelerometre {
   x: number;
@@ -60,6 +67,9 @@ export interface EtatSuivi {
   // Statistiques session en cours
   dureeSecondes: number;
   distanceMetres: number;
+  denivelePositifMetres: number;
+  deniveleNegatifMetres: number;
+  traceParcours: PointTrace[];
 }
 
 /** Résumé retourné quand une session est arrêtée */
@@ -68,6 +78,9 @@ export interface ResumeSuivi {
   distanceMetres: number;
   nombrePas: number;
   vitesseMoyenneKmh: number;
+  denivelePositifMetres: number;
+  deniveleNegatifMetres: number;
+  traceParcours: PointTrace[];
 }
 
 /** Configuration du suivi */

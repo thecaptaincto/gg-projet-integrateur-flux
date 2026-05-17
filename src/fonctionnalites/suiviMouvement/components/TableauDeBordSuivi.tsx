@@ -2,6 +2,7 @@ import React, {useState} from 'react';
 import {Pressable, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {theme} from '../../../styles/theme';
 import type {EtatSuivi} from '../sensors/types';
+import {MiniCarteTrace} from './MiniCarteTrace';
 import {
   formaterDistance,
   formaterDistanceKmMi,
@@ -75,6 +76,9 @@ export function TableauDeBordSuivi({
     estEnPause,
     dureeSecondes,
     distanceMetres,
+    denivelePositifMetres,
+    deniveleNegatifMetres,
+    traceParcours,
   } = etat;
 
   const [unite, setUnite] = useState<UniteSysteme>('metrique');
@@ -235,6 +239,29 @@ export function TableauDeBordSuivi({
           </View>
         );
       })()}
+
+      <Text style={styles.sectionTitre}>Dénivelé</Text>
+      <View style={styles.grille}>
+        <View style={[styles.carteColonne, {flexBasis: largeurCarte}]}>
+          <CarteMetrique
+            titre="Positif"
+            valeur={Math.round(denivelePositifMetres).toString()}
+            unite="m"
+            couleur="#34d399"
+          />
+        </View>
+        <View style={[styles.carteColonne, {flexBasis: largeurCarte}]}>
+          <CarteMetrique
+            titre="Négatif"
+            valeur={Math.round(deniveleNegatifMetres).toString()}
+            unite="m"
+            couleur={theme.couleurs.erreur}
+          />
+        </View>
+      </View>
+
+      <Text style={styles.sectionTitre}>Carte et trajectoire</Text>
+      <MiniCarteTrace points={traceParcours} />
 
       <Text style={styles.sectionTitre}>Podomètre</Text>
       <View style={[styles.carteColonne, {flexBasis: largeurPleine ?? largeurCarte}]}>
@@ -434,7 +461,7 @@ const styles = StyleSheet.create({
   nonDispo: {
     fontFamily: theme.polices.reguliere,
     color: theme.couleurs.placeholder,
-    fontStyle: 'italic',
+    opacity: 0.75,
     paddingVertical: 8,
   },
   erreursBox: {

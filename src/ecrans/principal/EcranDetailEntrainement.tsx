@@ -151,6 +151,12 @@ export const EcranDetailEntrainement = () => {
                   </Text>
                   <Text style={styles.puceLibelle}>Allure</Text>
                 </View>
+                <View style={styles.puce}>
+                  <Text style={styles.puceValeur}>
+                    +{Math.round(entrainement.denivelePositifMetres ?? 0)} m
+                  </Text>
+                  <Text style={styles.puceLibelle}>Dénivelé</Text>
+                </View>
               </View>
             </View>
 
@@ -181,6 +187,12 @@ export const EcranDetailEntrainement = () => {
                 <Text style={styles.carteTitre}>Temps total</Text>
                 <Text style={styles.carteValeur}>
                   {formaterDuree(entrainement.dureeSecondes)}
+                </Text>
+              </View>
+              <View style={styles.carte}>
+                <Text style={styles.carteTitre}>Descente cumulée</Text>
+                <Text style={styles.carteValeur}>
+                  {Math.round(entrainement.deniveleNegatifMetres ?? 0)} m
                 </Text>
               </View>
             </View>
@@ -275,6 +287,7 @@ const styles = StyleSheet.create({
   heroSousLigne: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
     gap: theme.espacement.sm,
     marginTop: theme.espacement.lg,
   },

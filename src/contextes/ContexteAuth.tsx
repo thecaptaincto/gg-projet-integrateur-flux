@@ -16,6 +16,7 @@ import {
 import {
   configurationGoogle,
   googleAuthEstConfiguree,
+  obtenirMessageConfigurationGoogle,
 } from '../config/googleAuth';
 import { serviceChiffrement } from '../services/serviceChiffrement';
 import { serviceRateLimiting } from '../services/serviceRateLimiting';
@@ -98,13 +99,13 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
   const [securitePrete, setSecuritePrete] = useState(false);
 
   useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: googleAuthEstConfiguree()
-        ? configurationGoogle.webClientId
-        : undefined,
-      iosClientId: configurationGoogle.iosClientId,
-      offlineAccess: false,
-    });
+    if (googleAuthEstConfiguree()) {
+      GoogleSignin.configure({
+        webClientId: configurationGoogle.webClientId,
+        iosClientId: configurationGoogle.iosClientId,
+        offlineAccess: false,
+      });
+    }
 
     let desabonner = () => {};
 
@@ -247,7 +248,7 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
       }
       if (!estMotDePasseValideInscription(motDePasse)) {
         throw new Error(
-          'Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre',
+          'Le mot de passe doit contenir au moins 8 caractères, dont 1 minuscule, 1 majuscule et 1 chiffre',
         );
       }
       if (nomNettoye.length < 2) {
@@ -392,9 +393,7 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
       setChargement(true);
 
       if (!googleAuthEstConfiguree()) {
-        throw new Error(
-          "La connexion Google n'est pas encore finalisée dans le code. Ajoute ton ID client Web Google dans src/config/googleAuth.ts.",
-        );
+        throw new Error(obtenirMessageConfigurationGoogle());
       }
 
       await GoogleSignin.hasPlayServices({
@@ -452,6 +451,15 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
           code: 'error',
           message:
             'Un compte existe déjà avec ce courriel via une autre méthode de connexion.',
+          firebaseCode: codeErreur,
+        };
+      }
+
+      if (codeErreur === 'auth/invalid-credential') {
+        throw {
+          code: 'error',
+          message:
+            "Le jeton Google a été refusé par Firebase. Vérifie que le SHA-1/SHA-256 Android et l'ID client Web sont bien configurés dans Firebase.",
           firebaseCode: codeErreur,
         };
       }

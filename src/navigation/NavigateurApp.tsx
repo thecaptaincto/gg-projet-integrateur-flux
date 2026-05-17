@@ -267,6 +267,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.couleurs.debutGradient,
   },
   texteChargement: {
+    fontFamily: theme.polices.reguliere,
     marginTop: 12,
     color: theme.couleurs.texteClair,
     fontSize: 16,

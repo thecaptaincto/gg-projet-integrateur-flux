@@ -28,15 +28,16 @@ export const estMotDePasseValideConnexion = (motDePasse: string): boolean => {
 };
 
 // Règle renforcée pour l'inscription : au moins 8 caractères,
-// une majuscule et un chiffre pour garantir une sécurité minimale
+// une minuscule, une majuscule et un chiffre
 export const estMotDePasseValideInscription = (
   motDePasse: string,
 ): boolean => {
   const texte = motDePasse;
   const a8Caracteres = texte.length >= 8;
   const aUneMajuscule = /[A-Z]/.test(texte);
+  const aUneMinuscule = /[a-z]/.test(texte);
   const aUnChiffre = /\d/.test(texte);
-  return a8Caracteres && aUneMajuscule && aUnChiffre;
+  return a8Caracteres && aUneMajuscule && aUneMinuscule && aUnChiffre;
 };
 
 /**

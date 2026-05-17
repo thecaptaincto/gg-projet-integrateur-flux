@@ -86,6 +86,9 @@ export const EcranSuiviMouvement = () => {
         distanceMetres: resumeSession.distanceMetres,
         nombrePas: resumeSession.nombrePas,
         vitesseMoyenneKmh: resumeSession.vitesseMoyenneKmh,
+        denivelePositifMetres: resumeSession.denivelePositifMetres,
+        deniveleNegatifMetres: resumeSession.deniveleNegatifMetres,
+        traceParcours: resumeSession.traceParcours,
       });
 
       const notifsActivees = await lirePreferenceNotifications();
@@ -177,6 +180,12 @@ export const EcranSuiviMouvement = () => {
                 <View style={styles.resumeItem}>
                   <Text style={styles.resumeValeur}>{resumeSession.nombrePas}</Text>
                   <Text style={styles.resumeLibelle}>Pas</Text>
+                </View>
+                <View style={styles.resumeItem}>
+                  <Text style={styles.resumeValeur}>
+                    +{Math.round(resumeSession.denivelePositifMetres)} m
+                  </Text>
+                  <Text style={styles.resumeLibelle}>Dénivelé</Text>
                 </View>
               </View>
 

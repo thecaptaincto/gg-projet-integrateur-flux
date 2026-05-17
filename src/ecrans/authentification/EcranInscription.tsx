@@ -1,5 +1,14 @@
-import React, {useMemo, useState} from 'react';
-import {StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import React, {useMemo, useRef, useState} from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import { utiliserAuth } from '../../contextes/ContexteAuth';
 import { ArrierePlanGradient } from '../../composants/ArrierePlanGradient';
@@ -54,8 +63,9 @@ const EcranInscription: React.FC<ProprietesEcranInscription> = ({
   const [motDePasse, setMotDePasse] = useState('');
   const [confirmMotDePasse, setConfirmMotDePasse] = useState('');
   const [motDePasseVisible, setMotDePasseVisible] = useState(false);
-  const [confirmMotDePasseVisible, setConfirmMotDePasseVisible] = useState(false);
-  const { inscrire, chargement } = utiliserAuth();
+  const [confirmMotDePasseVisible, setConfirmMotDePasseVisible] = useState(true);
+  const { inscrire, seConnecterAvecGoogle, chargement } = utiliserAuth();
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // `soumissionTentee` force l'affichage de toutes les erreurs dès le premier clic sur "S'inscrire"
   // `champsTouches` permet de n'afficher l'erreur d'un champ que lorsqu'il a perdu le focus (onBlur)
@@ -96,7 +106,7 @@ const EcranInscription: React.FC<ProprietesEcranInscription> = ({
       prochainesErreurs.motDePasse = 'Veuillez entrer un mot de passe.';
     } else if (!validerMotDePasse(motDePasse)) {
       prochainesErreurs.motDePasse =
-        'Minimum 8 caractères, une majuscule et un chiffre.';
+        'Minimum 8 caractères, dont 1 minuscule, 1 majuscule et 1 chiffre.';
     }
 
     if (!confirmMotDePasse) {
@@ -173,6 +183,26 @@ const EcranInscription: React.FC<ProprietesEcranInscription> = ({
     }
   };
 
+  const gererConnexionGoogle = async () => {
+    try {
+      await seConnecterAvecGoogle();
+    } catch (erreur: unknown) {
+      const code = estObjet(erreur) ? obtenirChaine(erreur.code) : undefined;
+      const message =
+        estObjet(erreur) ? obtenirChaine(erreur.message) : undefined;
+
+      if (code === 'google/cancelled') {
+        return;
+      }
+
+      afficherAlerte(
+        'erreur',
+        'Connexion Google',
+        message ?? 'Une erreur est survenue pendant la connexion Google.',
+      );
+    }
+  };
+
   // Réinitialise la pile de navigation vers l'accueil pour empêcher de
   // revenir à l'inscription en appuyant sur le bouton retour du téléphone
   const gererRetour = () => {
@@ -193,8 +223,14 @@ const EcranInscription: React.FC<ProprietesEcranInscription> = ({
           <Text style={styles.texteRetour}>← Retour</Text>
         </TouchableOpacity>
 
-        {/* Conteneur centré verticalement qui regroupe le titre et tous les champs */}
-        <View style={styles.contenuCentre}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView
+            ref={scrollViewRef}
+            contentContainerStyle={styles.contenuCentre}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}>
           <Text style={styles.titre}>Créer un compte</Text>
 
           {/* Champ Nom — autoCapitalize="words" met la première lettre en majuscule */}
@@ -231,7 +267,7 @@ const EcranInscription: React.FC<ProprietesEcranInscription> = ({
             ) : null}
           </View>
 
-          {/* Champ mot de passe — secureTextEntry masque les caractères saisis */}
+          {/* Champ mot de passe */}
           <View style={styles.groupeChamp}>
             <View style={styles.inputAvecAction}>
               <TextInput
@@ -263,7 +299,7 @@ const EcranInscription: React.FC<ProprietesEcranInscription> = ({
             ) : null}
           </View>
 
-          {/* Champ confirmation — vérifie que les deux mots de passe sont identiques */}
+          {/* Champ confirmation — toujours visible par défaut pour faciliter la saisie */}
           <View style={styles.groupeChamp}>
             <View style={styles.inputAvecAction}>
               <TextInput
@@ -272,6 +308,11 @@ const EcranInscription: React.FC<ProprietesEcranInscription> = ({
                 placeholderTextColor={theme.couleurs.placeholder}
                 value={confirmMotDePasse}
                 onChangeText={setConfirmMotDePasse}
+                onFocus={() => {
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({animated: true});
+                  }, 200);
+                }}
                 onBlur={() =>
                   setChampsTouches(etat => ({...etat, confirmMotDePasse: true}))
                 }
@@ -292,11 +333,21 @@ const EcranInscription: React.FC<ProprietesEcranInscription> = ({
                 <IconeOeil visible={confirmMotDePasseVisible} />
               </TouchableOpacity>
             </View>
-            {erreurChamp('confirmMotDePasse') ? (
-              <Text style={styles.texteErreur}>
-                {erreurChamp('confirmMotDePasse')}
-              </Text>
-            ) : null}
+            <Text
+              style={[
+                styles.texteErreur,
+                confirmMotDePasse.length > 0 &&
+                  confirmMotDePasse === motDePasse &&
+                  validerMotDePasse(motDePasse) &&
+                  styles.texteSucces,
+              ]}
+              numberOfLines={1}>
+              {confirmMotDePasse.length > 0 &&
+              confirmMotDePasse === motDePasse &&
+              validerMotDePasse(motDePasse)
+                ? '✓ Mots de passe identiques'
+                : erreurChamp('confirmMotDePasse') ?? ''}
+            </Text>
           </View>
 
           {/* Bouton de soumission : grisé visuellement si le formulaire est invalide
@@ -314,13 +365,23 @@ const EcranInscription: React.FC<ProprietesEcranInscription> = ({
             </Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.boutonSecondaire}
+            onPress={gererConnexionGoogle}
+            disabled={chargement}>
+            <Text style={styles.texteBoutonSecondaire}>
+              Continuer avec Google
+            </Text>
+          </TouchableOpacity>
+
           {/* Lien de navigation vers la connexion pour les utilisateurs déjà inscrits */}
           <TouchableOpacity onPress={() => navigation.navigate('Connexion')}>
             <Text style={styles.lien}>Vous avez déjà un compte? Connexion</Text>
           </TouchableOpacity>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
 
-        {/* Modale d'alerte placée hors du ScrollView pour se superposer à tout l'écran */}
+        {/* Modale d'alerte placée hors du formulaire pour se superposer à tout l'écran */}
         <AlertePersonnalisee
           visible={alerte.visible}
           type={alerte.type}
@@ -350,11 +411,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: theme.couleurs.texteClair,
   },
-  // flex:1 + justifyContent:'center' centre verticalement le formulaire dans l'espace disponible
-  contenuCentre: {
+  flex: {
     flex: 1,
-    justifyContent: 'center',
+  },
+  contenuCentre: {
+    flexGrow: 1,
+    justifyContent: 'flex-start',
     padding: 20,
+    paddingTop: 30,
+    paddingBottom: 40,
   },
   titre: {
     fontSize: 32,
@@ -402,7 +467,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontFamily: theme.polices.reguliere,
     fontSize: 14,
+    lineHeight: 20,
     color: theme.couleurs.erreur,
+  },
+  texteSucces: {
+    color: '#4CAF50',
   },
   // Ombre portée pour donner de la profondeur au bouton d'action principal
   bouton: {
@@ -418,6 +487,16 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  boutonSecondaire: {
+    marginTop: 12,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.couleurs.boutonSecondaireBordure,
+    backgroundColor: theme.couleurs.boutonSecondaireFond,
+  },
   // Grise et rend le bouton semi-transparent quand le formulaire est invalide
   boutonDesactive: {
     backgroundColor: theme.couleurs.boutonDesactiveFond,
@@ -428,12 +507,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: theme.polices.grasse,
   },
+  texteBoutonSecondaire: {
+    color: theme.couleurs.texteClair,
+    fontSize: 16,
+    fontFamily: theme.polices.grasse,
+  },
   lien: {
     fontFamily: theme.polices.reguliere,
     color: theme.couleurs.texteClair,
     textAlign: 'center',
     marginTop: 20,
     fontSize: 16,
+    textDecorationLine: 'underline',
   },
 });
 

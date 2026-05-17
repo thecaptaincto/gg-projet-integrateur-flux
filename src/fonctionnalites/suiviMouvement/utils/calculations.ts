@@ -3,7 +3,7 @@
 // Portée depuis utilitaires.py via le projet Expo de ton ami.
 // ============================================================
 
-import type {DonneesAccelerometre, PositionGPS} from '../sensors/types';
+import type {DonneesAccelerometre, PointTrace, PositionGPS} from '../sensors/types';
 
 const RAYON_TERRE_METRES = 6_371_000.0;
 
@@ -27,6 +27,18 @@ export function calculerDistanceMetres(
   const c = 2 * Math.asin(Math.sqrt(a));
 
   return RAYON_TERRE_METRES * c;
+}
+
+export function calculerDistanceTrace(
+  pointA: Pick<PointTrace, 'latitude' | 'longitude'>,
+  pointB: Pick<PointTrace, 'latitude' | 'longitude'>,
+): number {
+  return calculerDistanceMetres(
+    pointA.latitude,
+    pointA.longitude,
+    pointB.latitude,
+    pointB.longitude,
+  );
 }
 
 /**
@@ -120,6 +132,28 @@ export function appliquerZoneMorte(valeur: number, seuil: number): number {
 export function vitesseVersAllure(vitesseMs: number | null): number | null {
   if (vitesseMs === null || vitesseMs < 0.5) return null;
   return 1000 / vitesseMs;
+}
+
+export function cumulerDenivele(
+  altitudePrecedente: number | null,
+  altitudeCourante: number | null,
+  seuilMetres: number = 1.5,
+  variationMaxMetres: number = 25,
+): {gain: number; perte: number} {
+  if (altitudePrecedente === null || altitudeCourante === null) {
+    return {gain: 0, perte: 0};
+  }
+
+  const delta = altitudeCourante - altitudePrecedente;
+  const deltaAbsolu = Math.abs(delta);
+  if (deltaAbsolu < seuilMetres || deltaAbsolu > variationMaxMetres) {
+    return {gain: 0, perte: 0};
+  }
+
+  if (delta > 0) {
+    return {gain: delta, perte: 0};
+  }
+  return {gain: 0, perte: Math.abs(delta)};
 }
 
 /** Formate une allure (sec/km) en "MM:SS". */

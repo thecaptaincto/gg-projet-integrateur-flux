@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type {PointTrace} from '../fonctionnalites/suiviMouvement/sensors/types';
 
 export interface EntrainementSauvegarde {
   id: string;
@@ -8,6 +9,9 @@ export interface EntrainementSauvegarde {
   distanceMetres: number;
   nombrePas: number;
   vitesseMoyenneKmh: number;
+  denivelePositifMetres?: number;
+  deniveleNegatifMetres?: number;
+  traceParcours?: PointTrace[];
 }
 
 const PREFIXE_CLE_UTILISATEUR = 'entrainements_v2';

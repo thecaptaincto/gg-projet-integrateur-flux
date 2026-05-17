@@ -1,5 +1,14 @@
 import React, {useMemo, useState} from 'react';
-import {StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import { utiliserAuth } from '../../contextes/ContexteAuth';
 import { ArrierePlanGradient } from '../../composants/ArrierePlanGradient';
@@ -216,8 +225,13 @@ const EcranConnexion: React.FC<ProprietesEcranConnexion> = ({navigation}) => {
           <Text style={styles.texteRetour}>← Retour</Text>
         </TouchableOpacity>
 
-        {/* Zone centrale verticalement centrée contenant tous les éléments du formulaire */}
-        <View style={styles.contenuCentre}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView
+            contentContainerStyle={styles.contenuCentre}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}>
           <Text style={styles.titre}>Connexion</Text>
           <Text style={styles.sousTitre}>
             Si ton compte n'est pas encore vérifié, Flux te guidera pour cliquer
@@ -306,7 +320,8 @@ const EcranConnexion: React.FC<ProprietesEcranConnexion> = ({navigation}) => {
           <TouchableOpacity onPress={() => navigation.navigate('Inscription')}>
             <Text style={styles.lien}>Pas encore de compte? Inscrivez-vous</Text>
           </TouchableOpacity>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
 
         {/* Modale d'alerte pour les réponses serveur, rendue hors du formulaire
             pour se superposer à tout l'écran */}
@@ -339,11 +354,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: theme.couleurs.texteClair,
   },
-  // flex:1 + justifyContent:'center' place le formulaire au milieu de l'espace restant
-  contenuCentre: {
+  flex: {
     flex: 1,
+  },
+  contenuCentre: {
+    flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
+    paddingBottom: 40,
   },
   titre: {
     fontSize: 32,
@@ -444,6 +462,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     fontSize: 16,
+    textDecorationLine: 'underline',
   },
   // Plus petit et aligné à droite pour être discret sans disparaître
   lienOublie: {
