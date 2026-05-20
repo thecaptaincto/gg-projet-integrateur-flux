@@ -1,3 +1,13 @@
+// NavigateurApp.tsx — Racine de la navigation React Navigation.
+// Gère deux niveaux de navigation :
+//   - PilePrincipale (NativeStack) : transitions plein écran entre les grandes sections
+//   - OngletsPrincipaux (MaterialTopTabs) : cinq onglets dans l'interface principale
+// La route initiale est déterminée dynamiquement selon l'état d'authentification :
+//   premier lancement → Accueil, non connecté → Connexion, courriel non vérifié → VerificationCourriel,
+//   code d'accès requis → CodeAcces, sinon → Principal (onglets).
+// La barre d'onglets personnalisée (BarreOngletsBas) est positionnée en bas de l'écran
+// grâce à SafeAreaView et inclut un badge de notification sur l'onglet Notifications.
+
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';

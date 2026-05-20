@@ -1,6 +1,17 @@
+// stockageEntrainements.ts — Persistance locale des séances d'entraînement.
+// Utilise AsyncStorage avec une clé par utilisateur (UID Firebase) pour isoler
+// les données de chaque compte sur l'appareil.
+//
+// Versionnage des clés :
+//   - v1 (CLE_LEGACY) : stockage global sans isolation par utilisateur (obsolète)
+//   - v2 (PREFIXE_CLE_UTILISATEUR) : stockage par UID — format actuel
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {PointTrace} from '../fonctionnalites/suiviMouvement/sensors/types';
 
+// Structure complète d'un entraînement sauvegardé localement.
+// Les champs denivele et traceParcours sont optionnels pour rester
+// compatibles avec les séances enregistrées avant leur ajout.
 export interface EntrainementSauvegarde {
   id: string;
   nom: string;
@@ -17,10 +28,13 @@ export interface EntrainementSauvegarde {
 const PREFIXE_CLE_UTILISATEUR = 'entrainements_v2';
 const CLE_LEGACY = 'entrainements_v1';
 
+// Construit la clé AsyncStorage propre à chaque utilisateur
 function obtenirCleUtilisateur(uid: string): string {
   return `${PREFIXE_CLE_UTILISATEUR}:${uid}`;
 }
 
+// Garde de type : vérifie que la valeur désérialisée est bien un tableau
+// avant de la caster en EntrainementSauvegarde[] pour éviter les crashes
 function estListeEntrainementsValide(
   valeur: unknown,
 ): valeur is EntrainementSauvegarde[] {

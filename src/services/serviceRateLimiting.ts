@@ -1,6 +1,10 @@
-/**
- * Service de rate-limiting pour protéger contre les attaques par force brute
- */
+// serviceRateLimiting.ts — Protection contre les attaques par force brute.
+// Maintient un compteur de tentatives par clé (généralement l'adresse courriel)
+// avec un verrouillage à backoff exponentiel après `maxTentatives` échecs consécutifs.
+// Le délai max est plafonné à 1 heure. L'état est en mémoire (non persisté) —
+// il est réinitialisé si l'application redémarre, ce qui est acceptable pour le cas d'usage.
+//
+// Utilisé dans seConnecter() de ContexteAuth pour limiter les tentatives de connexion.
 
 interface LimiteurTentative {
   nombreTentatives: number;

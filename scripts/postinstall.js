@@ -34,16 +34,16 @@ function patchFile(relPath, patchFn) {
 function patchGestureHandlerBuildGradle(src) {
   let out = src;
 
-  // Avoid duplicate classes on old architecture:
-  // - RNGH ships pre-generated "paper" code
-  // - The RN Gradle plugin also runs codegen for libraries, generating the same classes
-  // So we apply the RN Gradle plugin only when the New Architecture is enabled.
+  // Evite les classes dupliquees sur l'ancienne architecture :
+  // - RNGH fournit deja le code "paper" pregenere
+  // - le plugin Gradle de RN relance aussi le codegen pour les bibliotheques
+  // On n'applique donc le plugin React Native que si la New Architecture est activee.
   out = out.replace(
     /^\s*apply plugin:\s*'com\.facebook\.react'\s*$/m,
     "if (isNewArchitectureEnabled()) {\n    apply plugin: 'com.facebook.react'\n}\n"
   );
 
-  // Use react-android artifact on RN 0.76+.
+  // Utilise l'artefact react-android a partir de RN 0.76+.
   out = out.replace(
     /implementation\s+['"]com\.facebook\.react:react-native:\+['"][^\n]*\n/gm,
     '    implementation("com.facebook.react:react-android")\n'
@@ -71,13 +71,14 @@ function patchPagerViewBuildGradle(src) {
     '  api("com.facebook.react:react-android")\n'
   );
 
-  // Ensure codegen config is always present (PagerViewViewManager.kt depends on generated delegates).
+  // Garantit que la configuration de codegen est toujours presente
+  // car PagerViewViewManager.kt depend des delegates generes.
   out = out.replace(
     /if\s*\(\s*isNewArchitectureEnabled\(\)\s*\)\s*\{\s*\n\s*react\s*\{\s*\n([\s\S]*?)\n\s*\}\s*\n\s*\}\s*\n/gm,
     (m, inner) => `react {\n${inner}\n}\n`
   );
   if (!out.includes("\nreact {\n")) {
-    // Best-effort insertion near the end of the file.
+    // Insertion de repli en fin de fichier si aucun bloc react n'existe deja.
     out +=
       "\nreact {\n" +
       "  jsRootDir = file(\"../src\")\n" +
@@ -102,7 +103,8 @@ function patchRemoveViewManagerWithGeneratedInterface(src) {
 function patchGestureHandlerButtonKt(src) {
   let out = src;
 
-  // Align with RN's Java interface `ReactPointerEventsView#getPointerEvents()`.
+  // Aligne la signature sur l'interface Java de RN
+  // `ReactPointerEventsView#getPointerEvents()`.
   out = out.replace(
     /@ReactProp\(name = ViewProps\.POINTER_EVENTS\)\s*\r?\n\s*override fun setPointerEvents\(view: ButtonViewGroup, pointerEvents: String\?\)\s*\{\s*[\s\S]*?\r?\n\s*\}\s*\r?\n/m,
     `@ReactProp(name = ViewProps.POINTER_EVENTS)

@@ -1,3 +1,9 @@
+// EcranSuiviMouvement.tsx — Écran de suivi en temps réel d'une session d'entraînement.
+// Orchestre le hook useSuiviMouvement (GPS + podomètre + accéléromètre) et
+// affiche le TableauDeBordSuivi. À l'arrêt de la session, une modale de nommage
+// permet de sauvegarder l'entraînement localement et d'envoyer une notification
+// récapitulative si les notifications sont activées.
+
 import React, {useEffect, useRef, useState} from 'react';
 import {
   ScrollView,
@@ -24,6 +30,7 @@ import {theme} from '../../styles/theme';
 import {sauvegarderEntrainement} from '../../utils/stockageEntrainements';
 import {lirePreferenceNotifications} from '../../utils/notifications';
 
+// Formate une durée pour la modale de résumé (format abrégé "1h 02m" ou "04:32")
 function formaterDureeResume(s: number): string {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
@@ -43,6 +50,7 @@ export const EcranSuiviMouvement = () => {
     (route.params?.suggestion as string | undefined) ?? undefined;
   const modeSimulationDemande =
     (route.params?.simulation as boolean | undefined) ?? true;
+  // Si les capteurs réels ne sont pas disponibles, forcer le mode simulation quoi qu'il arrive
   const [modeSimulation] = useState<boolean>(
     CAPTEURS_REELS_DISPONIBLES ? modeSimulationDemande : true,
   );
@@ -73,10 +81,13 @@ export const EcranSuiviMouvement = () => {
     }
   }, [suggestion, resumeSession]);
 
+  // Sauvegarde l'entraînement dans AsyncStorage, envoie une notification récapitulative
+  // si les notifications sont actives, puis ferme la modale et retourne à l'écran précédent.
   const sauvegarderResume = async () => {
     if (!resumeSession) {
       return;
     }
+    // Utilise le nom saisi ou "Entraînement" par défaut si le champ est vide
     const nom = nomEntrainement.trim() || 'Entraînement';
     try {
       await sauvegarderEntrainement(utilisateur?.uid, {
@@ -283,7 +294,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  // Modal
+  // Modale plein ecran affichee apres l'arret pour nommer puis confirmer la sauvegarde.
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: theme.couleurs.overlayModal,

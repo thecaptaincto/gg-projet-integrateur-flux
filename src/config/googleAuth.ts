@@ -1,3 +1,8 @@
+// googleAuth.ts — Configuration des identifiants OAuth Google.
+// Les valeurs proviennent de react-native-config (fichier .env) avec un fallback
+// sur le webClientId public extrait de google-services.json.
+// Ne jamais hardcoder des identifiants secrets (client_secret) ici.
+
 import Config from 'react-native-config';
 
 const nettoyerValeur = (valeur: string | undefined): string | undefined => {

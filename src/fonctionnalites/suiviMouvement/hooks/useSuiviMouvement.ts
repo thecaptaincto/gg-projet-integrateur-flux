@@ -1,3 +1,21 @@
+// useSuiviMouvement.ts — Hook principal d'une session d'entraînement.
+// Orchestrate GPS, podomètre et accéléromètre en deux modes :
+//   - Simulation : rejoue une trajectoire préenregistrée (simulatedSensors)
+//   - Réel       : écoute les capteurs natifs (deviceSensors)
+//
+// Algorithme de distance hybride :
+//   CAS 1 — GPS fiable (accuracy ≤ 15 m) + mouvement physique détecté → distance Haversine point à point
+//   CAS 2 — GPS imprécis ou absent + pas qui avancent → distance podomètre (pas × 0.7 m/pas)
+//
+// Autres fonctionnalités :
+//   - Filtre anti-saut GPS (vitesse > 8 m/s ≈ 28.8 km/h rejetée)
+//   - Lissage des vitesses et altitudes par moyenne mobile (fenêtre de 5 valeurs)
+//   - Allure glissante sur fenêtre de 60 s (Strava-style)
+//   - Sélection hardware/logiciel du podomètre (détection de pic accéléromètre à défaut)
+//   - Dénivelé cumulé positif et négatif
+//   - Trace GPS (jusqu'à 1000 points, delta min 3 m)
+//   - Gestion pause / reprise sans double-comptage
+
 import {useCallback, useEffect, useRef, useState} from 'react';
 import type {
   ConfigSuivi,

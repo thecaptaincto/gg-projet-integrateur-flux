@@ -1,3 +1,9 @@
+// EcranEnregistrer.tsx — Point de départ d'une nouvelle session d'entraînement.
+// Propose deux modes de lancement :
+//   - Simulation : trajectoire préenregistrée autour du Plateau-Mont-Royal (mode démo)
+//   - Réel       : capteurs GPS + podomètre + accéléromètre de l'appareil
+// Le mode réel est désactivé si CAPTEURS_REELS_DISPONIBLES est false.
+
 import React from 'react';
 import {
   ScrollView,

@@ -1,3 +1,8 @@
+// EcranDetailEntrainement.tsx — Vue détaillée d'un entraînement spécifique.
+// Reçoit l'`id` de l'entraînement via les paramètres de navigation, retrouve
+// l'entrée dans AsyncStorage et affiche les statistiques principales ainsi
+// qu'une section "Analyse" avec des métriques dérivées (cadence, longueur de pas).
+
 import React, {useCallback, useMemo, useState} from 'react';
 import {ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {useFocusEffect, useNavigation, useRoute} from '@react-navigation/native';
@@ -29,6 +34,9 @@ function formaterDuree(totalSecondes: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+// Formate l'allure moyenne de la session en "M:SS /km".
+// La plage valide est [120, 7200] secondes par km (≈ 0,5 à 30 km/h) pour
+// exclure les sessions corrompues ou les démos en simulation pure.
 function formaterAllure(distanceMetres: number, dureeSecondes: number): string {
   if (distanceMetres <= 0) return '--';
   const secParKm = dureeSecondes / (distanceMetres / 1000);
@@ -59,6 +67,9 @@ export const EcranDetailEntrainement = () => {
     }, [id, utilisateur?.uid]),
   );
 
+  // Calcule les métriques dérivées qui n'existent pas directement dans la sauvegarde.
+  // longueurPasOk filtre les valeurs aberrantes (> 2,5 m/pas = sprint, peu probable)
+  // qui peuvent survenir si le GPS et le podomètre divergent.
   const derive = useMemo(() => {
     if (!entrainement) {
       return null;

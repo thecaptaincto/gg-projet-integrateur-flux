@@ -1,7 +1,7 @@
-/**
- * Service de chiffrement des données sensibles
- * Utilise EncryptedStorage pour le stockage sécurisé
- */
+// serviceChiffrement.ts — Service de stockage chiffré des données sensibles.
+// Encapsule react-native-encrypted-storage (Keychain sur iOS, Android Keystore sur Android).
+// Utilisé exclusivement pour le code d'accès PIN afin que celui-ci ne soit jamais
+// stocké en clair dans AsyncStorage, même temporairement.
 
 import EncryptedStorage from 'react-native-encrypted-storage';
 

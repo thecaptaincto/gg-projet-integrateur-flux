@@ -1,3 +1,10 @@
+// EcranParametres.tsx — Écran de configuration regroupé en quatre sections accordéon :
+// Mon compte (réinitialisation mot de passe, suppression), Confidentialité (interrupteurs),
+// Notifications (activation système + filtre activités), Sécurité (code d'accès PIN).
+// Chaque section peut être repliée via un TouchableOpacity sur son en-tête.
+// Les préférences booléennes sont persistées dans AsyncStorage ; l'état alerte unique
+// gère toutes les modales avec des callbacks stockés dans l'objet d'état.
+
 import React, {useEffect, useState} from 'react';
 import {
   View,
@@ -68,6 +75,9 @@ export const EcranParametres: React.FC<ProprietesEcranParametres> = ({
     message: '',
   });
 
+  // Retour robuste : essaie goBack(), puis popToTop(), puis le navigateur parent.
+  // Nécessaire car l'écran est accessible depuis Profil (pile principale) ET depuis
+  // les raccourcis de l'onglet Profil (onglets), d'où la vérification multi-niveaux.
   const gererRetour = () => {
     if (typeof navigation?.canGoBack === 'function' && navigation.canGoBack()) {
       navigation.goBack();
@@ -203,6 +213,8 @@ export const EcranParametres: React.FC<ProprietesEcranParametres> = ({
     }
   };
 
+  // Suppression en deux étapes : confirmation d'abord, puis exécution.
+  // La modale de confirmation bloque l'action accidentelle car l'opération est irréversible.
   const gererSupprimerCompte = () => {
     const confirmerSuppression = async () => {
       fermerAlerte();

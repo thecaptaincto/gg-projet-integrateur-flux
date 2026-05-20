@@ -1,3 +1,8 @@
+// EcranNotifications.tsx — Centre de notifications de l'application.
+// Affiche la liste des notifications (push ou système) reçues, avec lecture,
+// marquage global et suppression. Inclut un bouton "Créer un test" pour générer
+// une notification locale en mode démo sans avoir besoin d'un serveur FCM.
+
 import React, {useMemo, useState} from 'react';
 import {
   ScrollView,
@@ -16,6 +21,8 @@ import {ArrierePlanGradient} from '../../composants/ArrierePlanGradient';
 import {utiliserNotifications} from '../../contextes/ContexteNotifications';
 import {theme} from '../../styles/theme';
 
+// Retourne une étiquette de temps relatif : "Il y a 5 min", "Il y a 2 h", "Il y a 3 j".
+// Math.max(1, ...) empêche d'afficher "Il y a 0 min" pour les notifications très récentes.
 const formaterTempsRelatif = (dateISO: string) => {
   const date = new Date(dateISO);
   const diffMs = Date.now() - date.getTime();
@@ -54,6 +61,8 @@ export const EcranNotifications = () => {
     message: string;
   }>({visible: false, type: 'info', titre: '', message: ''});
 
+  // Sous-titre contextuel : reflète l'état le plus pertinent à afficher à l'utilisateur.
+  // L'ordre de priorité est : désactivées > permission manquante > chargement > non lues > à jour.
   const sousTitre = useMemo(() => {
     if (!notificationsActivees) {
       return 'Les notifications sont désactivées dans tes paramètres.';

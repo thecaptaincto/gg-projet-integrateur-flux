@@ -1,3 +1,8 @@
+// validationFormulaire.test.ts — Tests unitaires des fonctions de validation
+// propres aux formulaires de l'app (utils/validationFormulaire).
+// Diffère de validation.test.ts par des règles de connexion plus souples (6 caractères min)
+// et la vérification du trim automatique sur les courriels.
+
 import {
   estCourrielValide,
   estMotDePasseValideConnexion,

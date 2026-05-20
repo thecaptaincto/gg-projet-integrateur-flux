@@ -1,3 +1,11 @@
+// ContexteAuth.tsx — Fournisseur de contexte d'authentification Firebase.
+// Expose les méthodes et l'état d'authentification à toute l'application :
+//   - Inscription / connexion par courriel (avec validation et rate limiting)
+//   - Connexion via Google (OAuth)
+//   - Vérification du courriel et code d'accès local (PIN chiffré)
+//   - Déconnexion et suppression de compte avec nettoyage des données
+//   - Synchronisation avec Firebase Auth via onAuthStateChanged
+
 import React, {createContext, useContext, useState, useEffect, ReactNode} from 'react';
 import auth, {FirebaseAuthTypes} from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -54,15 +62,21 @@ interface ValeurContexteAuth {
 
 const ContexteAuth = createContext<ValeurContexteAuth | undefined>(undefined);
 
+// Délai maximum pour la suppression du compte Firebase (opération critique non annulable)
 const DELAI_MAX_SUPPRESSION_CRITIQUE_MS = 15000;
+// Délai plus court pour les opérations de nettoyage (non bloquantes si elles échouent)
 const DELAI_MAX_NETTOYAGE_COMPTE_MS = 4000;
 
+// Crée une erreur typée avec un code personnalisé pour distinguer les timeouts
+// des autres erreurs Firebase dans les blocs catch
 function creerErreurDelai(message: string) {
   const erreur = new Error(message) as Error & {code: string};
   erreur.code = 'operation/timed-out';
   return erreur;
 }
 
+// Utilitaire générique : court-circuite une promesse si elle dépasse `delaiMs`.
+// Le minuteur est toujours annulé (finally) pour éviter les fuites mémoire.
 async function avecDelaiMax<T>(
   promesse: Promise<T>,
   delaiMs: number,
@@ -131,7 +145,6 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
 
     const chargerSecurite = async () => {
       try {
-        // ✅ Exécuter migrations de sécurité
         await executerMigrationSecurite();
 
         const [actif, ancienCode] = await Promise.all([
@@ -141,7 +154,7 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
         setCodeAccesActif(actif === 'true');
         codeAccesRef.current = ancienCode ?? null;
       } catch {
-        // ignore
+        // le finally assure la suite du démarrage même en cas d'erreur
       } finally {
         setSecuritePrete(true);
       }
@@ -157,6 +170,9 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
     setInitialisation(!(authPret && securitePrete));
   }, [authPret, securitePrete]);
 
+  // Si l'utilisateur est connecté et que le courriel est vérifié mais qu'il n'y a pas
+  // de code d'accès activé, on considère que la vérification est automatiquement réussie.
+  // Cela évite de bloquer l'accès aux utilisateurs qui n'ont pas configuré de code PIN.
   useEffect(() => {
     if (!utilisateur) {
       setCodeAccesVerifie(false);
@@ -171,6 +187,8 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
     }
   }, [codeAccesActif, courrielVerifie, utilisateur]);
 
+  // Récupère le code d'accès : priorité à la ref en mémoire (rapide),
+  // sinon lecture dans AsyncStorage (fallback compatible avec les versions non chiffrées)
   const obtenirCodeAcces = async (): Promise<string | null> => {
     if (codeAccesRef.current) {
       return codeAccesRef.current;
@@ -206,7 +224,8 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
         'Erreur réseau. Vérifiez votre connexion Internet.',
     };
 
-    // ✅ Messages génériques pour éviter l'énumération d'utilisateurs
+    // Messages génériques : user-not-found et wrong-password donnent intentionnellement le même texte
+    // pour empêcher un attaquant de distinguer "compte inexistant" de "mauvais mot de passe"
     const messagesConnexion: Record<string, string> = {
       'auth/user-not-found':
         'Courriel ou mot de passe incorrect.',
@@ -236,6 +255,9 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
     );
   };
 
+  // Inscription par courriel/mot de passe.
+  // Lance un throw {code: 'success'} après inscription réussie pour transporter
+  // le message de confirmation vers l'écran appelant via le même canal d'erreur.
   const inscrire = async (email: string, motDePasse: string, nom: string) => {
     try {
       setChargement(true);
@@ -293,7 +315,7 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
       const courrielNettoye = email.trim().toLowerCase();
       const motDePasseNettoye = motDePasse;
 
-      // ✅ Rate limiting: protéger contre le brute force
+      // Vérifier le rate limiting avant d'appeler Firebase pour bloquer les attaques par force brute en amont
       if (!serviceRateLimiting.verifier(courrielNettoye, 5, 3600000)) {
         const attente = serviceRateLimiting.obtenirDelaiAttente(courrielNettoye);
         const secondes = Math.ceil(attente / 1000);
@@ -320,7 +342,7 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
       setUtilisateur(utilisateurRecharge);
       setCourrielVerifie(utilisateurRecharge.emailVerified);
       
-      // ✅ Réinitialiser rate limit en cas de succès
+      // Connexion réussie : remettre le compteur à zéro pour cet utilisateur
       serviceRateLimiting.reinitialiser(courrielNettoye);
     } catch (erreur: any) {
       const message = erreur.code
@@ -524,7 +546,7 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
       try {
         await GoogleSignin.signOut();
       } catch {
-        // Ignore: l'utilisateur courant n'est pas forcément connecté via Google.
+        // L'utilisateur courant n'est pas forcément connecté via Google.
       }
       await auth().signOut();
       setCourrielVerifie(false);
@@ -538,6 +560,14 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
     }
   };
 
+  // Suppression de compte en plusieurs étapes :
+  //   1. Vérifier que la dernière connexion remonte à moins de 5 minutes (sécurité Firebase)
+  //   2. Supprimer le jeton push dans Firestore (best-effort avec délai max)
+  //   3. Supprimer le document utilisateur dans Firestore (best-effort)
+  //   4. Supprimer les entraînements locaux (best-effort)
+  //   5. Supprimer le compte Firebase Auth (bloquant, délai max strict)
+  // Les étapes 2-4 sont non bloquantes : un échec partiel ne doit pas empêcher
+  // la suppression du compte Firebase.
   const supprimerCompte = async () => {
     try {
       setChargement(true);
@@ -550,6 +580,8 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
       const {uid} = user;
       const derniereConnexion = Date.parse(user.metadata.lastSignInTime ?? '');
 
+      // Firebase exige une connexion récente pour les opérations de sécurité critiques.
+      // Au-delà de 5 minutes, on redirige l'utilisateur vers une reconnexion.
       if (
         Number.isFinite(derniereConnexion) &&
         Date.now() - derniereConnexion > 5 * 60 * 1000
@@ -666,7 +698,7 @@ export const FournisseurAuth = ({children}: {children: ReactNode}) => {
         }
       }
     } catch {
-      // ignore
+      // l'état local est déjà mis à jour optimistement
     }
   };
 

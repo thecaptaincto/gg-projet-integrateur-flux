@@ -1,3 +1,12 @@
+// ContexteNotifications.tsx — Fournisseur de contexte pour les notifications push (FCM).
+// Gère le cycle de vie complet des notifications :
+//   - Demande de permission (iOS / Android 13+)
+//   - Récupération et rotation du jeton FCM
+//   - Réception des messages en premier plan, arrière-plan et à l'ouverture
+//   - Persistance locale via AsyncStorage
+//   - Synchronisation du jeton dans Firestore pour l'envoi côté serveur
+//   - Nettoyage lors du changement de compte ou de la désactivation
+
 import React, {
   ReactNode,
   createContext,
@@ -59,10 +68,13 @@ const ContexteNotifications = createContext<
   ContexteNotificationsType | undefined
 >(undefined);
 
+// iOS accepte aussi PROVISIONAL (notifications silencieuses délivrées sans demande explicite)
 const permissionIosAccordee = (statut: number) =>
   statut === messaging.AuthorizationStatus.AUTHORIZED ||
   statut === messaging.AuthorizationStatus.PROVISIONAL;
 
+// POST_NOTIFICATIONS n'existe que depuis Android 13 (API 33) ; les versions inférieures
+// accordent les notifications sans permission explicite — on retourne true d'office.
 const verifierPermissionAndroidNotifications = async () => {
   if (Platform.OS !== 'android' || Platform.Version < 33) {
     return true;
@@ -75,6 +87,7 @@ const verifierPermissionAndroidNotifications = async () => {
   return resultat === PermissionsAndroid.RESULTS.GRANTED;
 };
 
+// Vérifie si la permission existe déjà (sans la redemander à l'utilisateur)
 const verifierPermissionAndroidExistante = async () => {
   if (Platform.OS !== 'android' || Platform.Version < 33) {
     return true;
@@ -161,6 +174,9 @@ export const FournisseurNotifications = ({
     };
   }, [synchroniserJetonEtPermissions]);
 
+  // Recharger les notifications quand l'app revient au premier plan (depuis background).
+  // Nécessaire car les messages reçus en arrière-plan sont traités par le handler
+  // dans index.js et persistés dans AsyncStorage, mais l'état React n'est pas mis à jour.
   useEffect(() => {
     const abonnementEtatApp = AppState.addEventListener('change', etat => {
       if (etat === 'active') {
@@ -191,11 +207,15 @@ export const FournisseurNotifications = ({
 
   const listenersRef = useRef<Array<() => void>>([]);
 
+  // Enregistrement des listeners FCM : premier plan, ouverture depuis notification et rotation de jeton.
+  // On recrée les listeners à chaque changement de `notificationsActivees` pour éviter
+  // les fuites mémoire et les doublons (l'effet précédent est nettoyé par le return).
   useEffect(() => {
     if (!notificationsActivees) {
       return;
     }
 
+    // Persiste et affiche la notification dans l'état React
     const enregistrerMessage = async (remoteMessage: RemoteMessage) => {
       const notification = creerNotificationDepuisMessage(remoteMessage);
       await ajouterNotification(notification);
@@ -203,12 +223,12 @@ export const FournisseurNotifications = ({
       setNotifications(liste);
     };
 
-    // ✅ Nettoyer les anciens listeners
+    // Nettoyer les listeners précédents avant d'en créer de nouveaux pour éviter les doublons
     listenersRef.current.forEach(unsub => {
       try {
         unsub();
       } catch {
-        // ignore
+        // l'abonnement est peut-être déjà libéré
       }
     });
     listenersRef.current = [];
@@ -245,7 +265,7 @@ export const FournisseurNotifications = ({
         try {
           unsub();
         } catch {
-          // ignore
+          // l'abonnement est peut-être déjà libéré
         }
       });
       listenersRef.current = [];
@@ -389,6 +409,8 @@ export const FournisseurNotifications = ({
     [],
   );
 
+  // useMemo : recalcule l'objet de contexte uniquement quand une des dépendances change.
+  // Évite que tous les consommateurs du contexte se re-rendent à chaque render du fournisseur.
   const valeur = useMemo(
     () => ({
       notifications,
@@ -396,6 +418,7 @@ export const FournisseurNotifications = ({
       permissionAccordee,
       jetonPush,
       chargement,
+      // Calculé ici pour éviter que chaque consommateur filtre la liste lui-même
       nombreNonLues: notifications.filter(notification => !notification.lue)
         .length,
       definirNotificationsActivees,

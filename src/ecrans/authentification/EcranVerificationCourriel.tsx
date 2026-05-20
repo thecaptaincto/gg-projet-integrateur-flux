@@ -1,3 +1,8 @@
+// EcranVerificationCourriel.tsx — Écran affiché entre l'inscription et l'accès à l'app.
+// L'utilisateur doit cliquer le lien reçu par courriel, puis appuyer sur "J'ai confirmé"
+// pour déclencher un rafraîchissement de l'état emailVerified depuis Firebase.
+// Il peut aussi renvoyer le courriel ou se déconnecter s'il a fait une erreur d'adresse.
+
 import React from 'react';
 import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -65,7 +70,7 @@ export const EcranVerificationCourriel = () => {
     try {
       await seDeconnecter();
     } catch {
-      // ignore
+      // la navigation vers l'écran de connexion suit de toute façon
     }
   };
 

@@ -1,3 +1,9 @@
+// EcranPrincipal.tsx — Tableau de bord de l'application (onglet Accueil).
+// Affiche les statistiques agrégées par période (aujourd'hui / semaine / mois)
+// et les 5 dernières activités enregistrées. Les données sont rechargées à
+// chaque fois que l'écran reçoit le focus (useFocusEffect) pour rester à jour
+// après qu'un entraînement a été sauvegardé depuis EcranSuiviMouvement.
+
 import React, {useCallback, useState} from 'react';
 import {
   ScrollView,
@@ -18,6 +24,7 @@ import {
 
 type PeriodeStats = 'jour' | 'semaine' | 'mois';
 
+// Formate une durée en secondes : "HH:MM:SS" si > 1h, sinon "MM:SS"
 function formaterDuree(totalSecondes: number): string {
   const heures = Math.floor(totalSecondes / 3600);
   const minutes = Math.floor((totalSecondes % 3600) / 60);
@@ -28,6 +35,7 @@ function formaterDuree(totalSecondes: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(secondes).padStart(2, '0')}`;
 }
 
+// Formate une date ISO en "12 mai 2025" (locale canadienne francophone)
 function formaterDate(isoString: string): string {
   return new Date(isoString).toLocaleDateString('fr-CA', {
     day: 'numeric',
@@ -36,6 +44,8 @@ function formaterDate(isoString: string): string {
   });
 }
 
+// Retourne true si la date correspond à la période sélectionnée.
+// Le début de la semaine suit le calendrier américain (dimanche = jour 0).
 function estDansPeriode(dateISO: string, periode: PeriodeStats): boolean {
   const date = new Date(dateISO);
   const maintenant = new Date();
@@ -50,7 +60,7 @@ function estDansPeriode(dateISO: string, periode: PeriodeStats): boolean {
     debutSemaine.setDate(debutJour.getDate() - debutJour.getDay());
     return date >= debutSemaine;
   }
-  // mois
+  // Pour le mois courant, on conserve toutes les séances depuis le 1er à minuit.
   const debutMois = new Date(maintenant.getFullYear(), maintenant.getMonth(), 1);
   return date >= debutMois;
 }
@@ -74,10 +84,12 @@ export const EcranPrincipal = () => {
     }, [utilisateur?.uid]),
   );
 
+  // Filtrer les entraînements selon la période sélectionnée
   const entrainementsPeriode = entrainements.filter(e =>
     estDansPeriode(e.dateISO, periode),
   );
 
+  // Agrégation des statistiques sur la période : sessions, km totaux, temps total
   const stats = {
     nbSessions: entrainementsPeriode.length,
     distanceTotaleKm: entrainementsPeriode.reduce(
@@ -90,6 +102,7 @@ export const EcranPrincipal = () => {
     ),
   };
 
+  // Les 5 derniers entraînements, triés du plus récent au plus ancien (ordre de la liste)
   const recents = entrainements.slice(0, 5);
 
   return (

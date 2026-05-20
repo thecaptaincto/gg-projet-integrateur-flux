@@ -1,3 +1,13 @@
+// AlertePersonnalisee.tsx — Remplacement de l'Alert natif de React Native.
+// Modale stylisée supportant cinq types sémantiques qui adaptent automatiquement
+// couleurs et icône :
+//   - 'confirmation'  : deux boutons (Annuler / Confirmer) pour les actions irréversibles
+//   - 'info'          : message informatif, un seul bouton
+//   - 'attention'     : validation / champs manquants
+//   - 'avertissement' : avertissement non bloquant
+//   - 'erreur'        : erreur critique
+// Inclut une animation de fondu (Animated.Value) et fermeture au tap sur l'arrière-plan.
+
 import React from 'react';
 import {
   Modal,
@@ -13,13 +23,6 @@ import {theme} from '../styles/theme';
 export type TypeAlerteSeverite = 'info' | 'attention' | 'avertissement' | 'erreur';
 export type TypeAlertePersonnalisee = 'confirmation' | TypeAlerteSeverite;
 
-// Remplacement de l'Alert natif de React Native par une modale stylisée.
-// Supporte plusieurs types sémantiques qui changent automatiquement les couleurs et l'icône :
-//   - 'confirmation'  : deux boutons (Annuler / Confirmer) pour les actions irréversibles
-//   - 'attention'     : validation / champs manquants
-//   - 'avertissement' : avertissement non bloquant
-//   - 'erreur'        : échec / erreur serveur
-//   - 'info'          : message neutre
 interface ProprietesAlertePersonnalisee {
   visible: boolean;
   type: TypeAlertePersonnalisee;

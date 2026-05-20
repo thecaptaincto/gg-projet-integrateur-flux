@@ -1,7 +1,10 @@
-/**
- * Migration de sécurité - Corrige les données stockées en clair
- * À exécuter une fois au démarrage
- */
+// migrationSecurite.ts — Migration unique des données de sécurité stockées en clair.
+// Exécutée à chaque démarrage dans ContexteAuth (idempotente grâce au marqueur v1).
+//
+// Migration 1 : si un ancien code d'accès à 6 chiffres est trouvé en clair dans AsyncStorage,
+// il est remplacé par un nouveau code à 8 chiffres stocké dans EncryptedStorage (chiffré),
+// puis la clé AsyncStorage non chiffrée est supprimée.
+// Si la migration a déjà été effectuée (clé migration_securite_v1_complete = 'true'), rien n'est fait.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { serviceChiffrement } from '../services/serviceChiffrement';
@@ -27,7 +30,7 @@ export const executerMigrationSecurite = async (): Promise<void> => {
       console.log('[Migration] Code d\'accès migré et chiffré');
     }
 
-    // Migration 2: Logger la migration effectuée
+    // Marquer la migration v1 comme accomplie pour ne pas la réexécuter aux prochains démarrages
     await AsyncStorage.setItem('migration_securite_v1_complete', 'true');
   } catch (erreur) {
     console.error('[Migration] Erreur lors de la migration:', erreur);

@@ -1,3 +1,9 @@
+// EcranProfil.tsx — Page de profil utilisateur : avatar (initiale du courriel),
+// modification du nom affiché, badge de vérification du courriel, raccourcis vers
+// Historique et Paramètres, génération d'un code d'accès, et déconnexion.
+// Un seul objet `alerte` gère toutes les modales (confirmation, info, erreur)
+// grâce à des callbacks stockés directement dans l'état.
+
 import React from 'react';
 import {
   View,
@@ -33,10 +39,6 @@ interface EtatAlerteProfil {
   onAnnuler?: () => void;
 }
 
-// Écran de profil utilisateur : affiche l'avatar (initiale du courriel),
-// les paramètres du compte, la section support et le bouton de déconnexion.
-// L'état `alerte` gère toutes les modales (confirmation de déconnexion,
-// affichage du code d'accès, messages d'erreur) depuis un seul objet d'état.
 export const EcranProfil = () => {
   const navigation = useNavigation<any>();
   const {
@@ -119,8 +121,7 @@ export const EcranProfil = () => {
     });
   };
 
-  // Génère un code à 6 chiffres via le contexte et l'affiche dans une modale info.
-  // Note : le message indique "5 minutes" mais ce délai n'est pas encore appliqué côté code
+  // Génère un code à 8 chiffres via le contexte et l'affiche dans une modale info.
   const gererGenerationCode = async () => {
     try {
       const code = await genererCodeAcces();

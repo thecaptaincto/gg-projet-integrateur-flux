@@ -1,3 +1,10 @@
+// MiniCarteTrace.tsx — Carte GPS inline affichant la trace du parcours en cours.
+// Utilise une grille de 3×3 tuiles OpenStreetMap (projection Web Mercator / EPSG:3857).
+// Le zoom est choisi automatiquement pour que 72 % du canvas contienne tous les points.
+// Les segments sont dessinés en "pointillés" (Views positionnées absolument, espacées de 10 px)
+// car React Native ne supporte pas nativement les <canvas> ou les SVG polyline.
+// Le badge "Zoom auto limité" s'affiche quand l'étendue GPS est trop faible pour être utile.
+
 import React, {useMemo} from 'react';
 import {Image, StyleSheet, Text, View} from 'react-native';
 import type {PointTrace} from '../sensors/types';
@@ -16,10 +23,15 @@ function borne(valeur: number, min: number, max: number): number {
   return Math.min(Math.max(valeur, min), max);
 }
 
+// Projection Mercator : convertit une longitude en coordonnée pixel X au niveau de zoom donné.
+// Formule standard OSM : x = ((lon + 180) / 360) * 256 * 2^zoom
 function longitudeVersPixelX(longitude: number, zoom: number): number {
   return ((longitude + 180) / 360) * TAILLE_TUILE * 2 ** zoom;
 }
 
+// Projection Mercator : convertit une latitude en coordonnée pixel Y.
+// Bornée entre ±85.05° (limites de la projection) pour éviter la division par zéro.
+// Formule : y = ((1 - ln(tan(π/4 + lat/2)) / π) / 2) * 256 * 2^zoom
 function latitudeVersPixelY(latitude: number, zoom: number): number {
   const latitudeBornee = borne(latitude, -85.05112878, 85.05112878);
   const rad = (latitudeBornee * Math.PI) / 180;
@@ -29,6 +41,8 @@ function latitudeVersPixelY(latitude: number, zoom: number): number {
   );
 }
 
+// Sélectionne le zoom OSM (11–17) le plus élevé pour lequel la trace tient
+// dans 72 % du canvas (TAILLE_CANVAS × 0.72), afin de laisser une marge visuelle.
 function choisirZoom(points: PointTrace[]): number {
   if (points.length <= 1) {
     return 16;
@@ -57,6 +71,10 @@ function choisirZoom(points: PointTrace[]): number {
   return 11;
 }
 
+// Calcule la grille de tuiles et projette les points GPS en coordonnées pixel canvas.
+// Centre la vue sur le barycentre de la trace, puis détermine les 9 tuiles OSM
+// qui recouvrent le canvas. Retourne aussi etendueFaible si la trace est trop courte
+// pour être significative (moins de ~200 m, soit < MARGE_MIN_DEGRES).
 function preparerCarte(points: PointTrace[]) {
   if (points.length === 0) {
     return {
@@ -123,6 +141,9 @@ function preparerCarte(points: PointTrace[]) {
   };
 }
 
+// Simule un trait entre deux points projetés en plaçant `etapes` petits points Views.
+// React Native ne peut pas tracer de lignes SVG, donc on découpe le vecteur en N dots
+// espacés régulièrement (max 1 dot / 10 px). Les segments < 2 px sont ignorés.
 function SegmentTrace({
   depart,
   arrivee,

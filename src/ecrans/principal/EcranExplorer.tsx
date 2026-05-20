@@ -1,3 +1,10 @@
+// EcranExplorer.tsx — Tableau de bord de démarrage rapide.
+// Affiche : carte héro avec un message contextuel (basé sur la cadence de la semaine),
+// résumé hebdomadaire agrégé, grille de démarrages rapides (Marche, Course, Sport, Découverte),
+// raccourcis vers l'historique, et la dernière activité enregistrée.
+// Le mode simulation est persisté dans AsyncStorage et forcé à `true` si les capteurs réels
+// sont indisponibles (émulateur). useFocusEffect recharge les entraînements à chaque visite.
+
 import React, {useCallback, useMemo} from 'react';
 import {
   View,
@@ -22,6 +29,7 @@ import {
   type EntrainementSauvegarde,
 } from '../../utils/stockageEntrainements';
 
+// Formate une durée en secondes en chaîne lisible ("1h 05m" ou "12 min")
 function formaterDuree(totalSecondes: number): string {
   const heures = Math.floor(totalSecondes / 3600);
   const minutes = Math.floor((totalSecondes % 3600) / 60);
@@ -33,6 +41,7 @@ function formaterDuree(totalSecondes: number): string {
   return `${minutes} min`;
 }
 
+// Affiche en km au-dessus de 1000 m, sinon en mètres arrondis
 function formaterDistance(distanceMetres: number): string {
   if (distanceMetres >= 1000) {
     return `${(distanceMetres / 1000).toFixed(1)} km`;
@@ -49,6 +58,7 @@ function formaterDateCourte(isoString: string): string {
   });
 }
 
+// Retourne vrai si la date ISO est dans la semaine courante (lundi = début de semaine)
 function estCetteSemaine(dateISO: string): boolean {
   const date = new Date(dateISO);
   const maintenant = new Date();
@@ -104,7 +114,7 @@ export const EcranExplorer = () => {
         setModeSimulation(CAPTEURS_REELS_DISPONIBLES ? v === 'true' : true);
       })
       .catch(() => {
-        // ignore
+        // la valeur par défaut reste active
       });
   }, []);
 
@@ -133,7 +143,7 @@ export const EcranExplorer = () => {
         prochaineValeur ? 'true' : 'false',
       );
     } catch {
-      // ignore
+      // l'UI est déjà mise à jour, la persistance est secondaire
     }
   };
 
@@ -150,6 +160,7 @@ export const EcranExplorer = () => {
 
   const dernierEntrainement = entrainements[0];
 
+  // Aggrège sessions, durée, distance et pas pour les entraînements de la semaine courante
   const resumeSemaine = useMemo(() => {
     const entrainementsSemaine = entrainements.filter(item =>
       estCetteSemaine(item.dateISO),
@@ -171,6 +182,7 @@ export const EcranExplorer = () => {
     );
   }, [entrainements]);
 
+  // Message d'accroche adapté à la cadence : 0 session → invite à commencer, 4+ → félicitations
   const messageContextuel = useMemo(() => {
     if (resumeSemaine.sessions === 0) {
       return 'Commence une première session pour voir tes stats apparaître ici.';

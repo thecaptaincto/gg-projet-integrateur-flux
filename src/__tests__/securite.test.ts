@@ -1,4 +1,8 @@
-// ✅ Mocks pour Jest (tests en environnement Node, pas React Native)
+// securite.test.ts — Tests critiques de sécurité : rate limiting et validation des formulaires.
+// Les mocks remplacent EncryptedStorage et react-native-config (modules natifs)
+// pour permettre l'exécution dans l'environnement Node.js de Jest.
+
+// Mocks pour Jest (tests en environnement Node, pas React Native)
 jest.mock('react-native-encrypted-storage', () => ({
   setItem: jest.fn().mockResolvedValue(undefined),
   getItem: jest.fn().mockResolvedValue(null),
@@ -14,7 +18,7 @@ jest.mock('react-native-config', () => ({
 
 import { serviceRateLimiting } from '../services/serviceRateLimiting';
 
-describe('🔐 Sécurité - Tests Critiques', () => {
+describe('Sécurité - Tests Critiques', () => {
   afterEach(() => {
     serviceRateLimiting.reinitialiserTous();
   });

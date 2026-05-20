@@ -1,6 +1,13 @@
+// notifications.ts — Persistance et manipulation des notifications dans AsyncStorage.
+// Ce module est la couche "bas niveau" : il lit et écrit directement dans le stockage local.
+// Le contexte ContexteNotifications.tsx est la couche "haut niveau" qui expose ces fonctions
+// aux composants React via un hook.
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {RemoteMessage} from '@react-native-firebase/messaging';
 
+// Structure d'une notification locale persistée dans AsyncStorage.
+// source : 'push' = reçue via FCM, 'systeme' = générée en interne par l'app
 export type NotificationFlux = {
   id: string;
   titre: string;
@@ -13,10 +20,12 @@ export type NotificationFlux = {
 
 const CLE_NOTIFICATIONS = 'flux_notifications';
 export const CLE_NOTIFICATIONS_ACTIVES = 'notifs_actives';
+// On ne conserve que les 50 notifications les plus récentes pour limiter l'espace utilisé
 const LIMITE_NOTIFICATIONS = 50;
 
 type MessageDistant = RemoteMessage;
 
+// Génère un ID unique basé sur l'horodatage et un suffixe aléatoire (base-36)
 const genererId = () =>
   `notif-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -103,7 +112,7 @@ export const lireNotifications = async (): Promise<NotificationFlux[]> => {
       return [];
     }
 
-    // ✅ Valider chaque notification individuellement
+    // Filtrer les entrées corrompues ou mal structurées (ex. migration, écriture partielle)
     return parsed.filter(estNotificationValide);
   } catch (err) {
     console.error('Erreur lecture notifications:', err);

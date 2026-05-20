@@ -1,9 +1,9 @@
 /**
  * Utilitaires de validation génériques (formulaires, paramètres, etc.).
  * Ces fonctions sont pures et ne dépendent pas de Firebase ou du stockage local.
- * 
- * NOTE: Préférer estCourrielValide et estMotDePasseValideInscription
- * depuis validationFormulaire.ts pour une source unique de vérité.
+ *
+ * Préférer `estCourrielValide` et `estMotDePasseValideInscription`
+ * depuis `validationFormulaire.ts` pour centraliser les règles d'authentification.
  */
 
 export const validerMotDePasse = (mdp: string): boolean =>

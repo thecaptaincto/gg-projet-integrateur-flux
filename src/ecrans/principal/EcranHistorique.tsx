@@ -1,3 +1,8 @@
+// EcranHistorique.tsx — Liste complète des entraînements avec filtrage par période.
+// L'écran accepte un paramètre de navigation `periode` (ex: depuis EcranPrincipal)
+// pour ouvrir directement le filtre correspondant. Chaque entraînement peut être
+// consulté en détail ou supprimé (confirmation via AlertePersonnalisee).
+
 import React, {useCallback, useMemo, useState} from 'react';
 import {
   FlatList,
@@ -82,6 +87,8 @@ export const EcranHistorique = () => {
     }, [utilisateur?.uid]),
   );
 
+  // Filtrage mémoïsé : évite de refiltrer le tableau à chaque rendu tant que
+  // les entraînements ou la période n'ont pas changé
   const entrainementsAffiches = useMemo(() => {
     if (periode === 'tout') {
       return entrainements;
@@ -89,6 +96,7 @@ export const EcranHistorique = () => {
     return entrainements.filter(e => estDansPeriode(e.dateISO, periode));
   }, [entrainements, periode]);
 
+  // Suppression confirmée : retire l'entraînement du stockage local et de l'état React
   const confirmerSuppression = async () => {
     if (!idASupprimer) {
       return;

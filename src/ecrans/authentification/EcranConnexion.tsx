@@ -1,3 +1,9 @@
+// EcranConnexion.tsx — Formulaire de connexion par courriel/mot de passe et Google.
+// Validation en temps réel (useMemo) avec affichage différé des erreurs (onBlur ou soumission).
+// La réinitialisation du mot de passe réutilise le champ courriel visible à l'écran.
+// En cas de connexion réussie, le contexte met à jour `utilisateur` et
+// NavigateurApp redirige automatiquement vers Principal.
+
 import React, {useMemo, useState} from 'react';
 import {
   KeyboardAvoidingView,

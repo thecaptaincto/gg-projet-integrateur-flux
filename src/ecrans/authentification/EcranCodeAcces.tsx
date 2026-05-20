@@ -1,3 +1,8 @@
+// EcranCodeAcces.tsx — Écran de vérification du code d'accès local (PIN à 8 chiffres).
+// Affiché uniquement quand l'utilisateur est connecté et a activé le code d'accès
+// dans les paramètres. Le code est stocké chiffré via EncryptedStorage.
+// En cas d'échec, l'utilisateur peut se déconnecter pour revenir à la connexion classique.
+
 import React, {useMemo, useRef, useState} from 'react';
 import {
   StyleSheet,
@@ -31,6 +36,9 @@ export const EcranCodeAcces = ({navigation}: {navigation: any}) => {
 
   const fermerAlerte = () => setAlerte(prev => ({...prev, visible: false}));
 
+  // Valide le code saisi contre le code stocké chiffré.
+  // Après succès, réinitialise la pile de navigation vers Principal pour éviter
+  // de revenir à cet écran via le bouton retour.
   const valider = async () => {
     if (chargement) return;
     if (codeNettoye.length < 6) {
@@ -65,7 +73,7 @@ export const EcranCodeAcces = ({navigation}: {navigation: any}) => {
     try {
       await seDeconnecter();
     } catch {
-      // ignore
+      // la navigation vers l'écran de connexion suit de toute façon
     }
   };
 

@@ -1,3 +1,6 @@
+// validation.test.ts — Tests unitaires des fonctions pures de validation (utils/validation).
+// Couvre les cas limites du mot de passe (longueur, casse, chiffre) et du format courriel.
+
 import {validerMotDePasse, validerEmail} from '../utils/validation';
 
 describe('Validation des formulaires', () => {

@@ -1,3 +1,9 @@
+// TableauDeBordSuivi.tsx — Composant d'affichage des métriques en temps réel.
+// Reçoit l'état complet de la session (EtatSuivi) en props et l'affiche sous forme
+// de cartes métriques regroupées par sections (GPS, vitesse, allure, distance, dénivelé,
+// carte, podomètre, accéléromètre). Inclut un bouton de bascule métrique/impérial
+// et une mise en page adaptive tablette/mobile (breakpoint 768 px de largeur).
+
 import React, {useState} from 'react';
 import {Pressable, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {theme} from '../../../styles/theme';
@@ -20,6 +26,7 @@ interface ProprietesTableauDeBordSuivi {
   modeSimulation: boolean;
 }
 
+// Formate la durée du chronomètre : "HH:MM:SS" au-delà d'une heure, sinon "MM:SS"
 function formaterDuree(totalSecondes: number): string {
   const h = Math.floor(totalSecondes / 3600);
   const m = Math.floor((totalSecondes % 3600) / 60);
@@ -30,6 +37,8 @@ function formaterDuree(totalSecondes: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+// Carte de métrique individuelle avec une barre de couleur sur le côté gauche.
+// `couleur` permet de différencier visuellement les sections (GPS = violet, vitesse = rouge, etc.)
 function CarteMetrique({
   titre,
   valeur,
@@ -83,11 +92,17 @@ export function TableauDeBordSuivi({
 
   const [unite, setUnite] = useState<UniteSysteme>('metrique');
   const {width} = useWindowDimensions();
+
+  // Bascule entre le système métrique et impérial en un tap
   const basculerUnite = () => {
     setUnite(prev => (prev === 'metrique' ? 'imperial' : 'metrique'));
   };
+
+  // Priorité à la vitesse lissée (filtre moyenne mobile) sur la valeur brute du capteur
   const vitesseAfficheeMs = vitesseLissee ?? vitesseMs;
   const vitesseAfficheeKmh = vitesseLisseeKmh ?? vitesseKmh;
+
+  // Mise en page adaptive : 3 colonnes sur tablette (≥768px), 2 colonnes sur mobile
   const estTablette = width >= 768;
   const largeurCarte = estTablette ? '31%' : '48%';
   const largeurPleine = estTablette ? '100%' : undefined;

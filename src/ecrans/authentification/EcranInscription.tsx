@@ -1,3 +1,9 @@
+// EcranInscription.tsx — Formulaire de création de compte (courriel/mot de passe ou Google).
+// La validation s'effectue en temps réel via useMemo ; les erreurs ne s'affichent
+// qu'après interaction (onBlur) ou après une première tentative de soumission (soumissionTentee).
+// La confirmation du mot de passe offre un retour visuel vert quand les deux champs correspondent.
+// Après inscription réussie, NavigateurApp redirige automatiquement vers l'écran de vérification.
+
 import React, {useMemo, useRef, useState} from 'react';
 import {
   KeyboardAvoidingView,

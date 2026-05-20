@@ -1,3 +1,8 @@
+// BorneErreur.tsx — Composant de type "Error Boundary" (React class component).
+// Intercepte toute exception levée pendant le rendu d'un enfant et affiche
+// un écran de secours plutôt que de laisser l'application planter silencieusement.
+// Les Error Boundaries doivent obligatoirement être des composants de classe (React API).
+
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {ArrierePlanGradient} from './ArrierePlanGradient';
@@ -17,10 +22,14 @@ export class BorneErreur extends React.PureComponent<
 > {
   state: EtatBorneErreur = {};
 
+  // getDerivedStateFromError est appelé lors d'une exception de rendu ;
+  // on mémorise l'erreur pour basculer vers l'écran de secours
   static getDerivedStateFromError(erreur: Error): EtatBorneErreur {
     return {erreur};
   }
 
+  // componentDidCatch est appelé après getDerivedStateFromError ;
+  // on logue ici pour faciliter le débogage (stack trace visible dans Metro)
   componentDidCatch(erreur: Error, info: React.ErrorInfo) {
     console.error("Erreur de rendu (BorneErreur):", erreur, info?.componentStack);
   }

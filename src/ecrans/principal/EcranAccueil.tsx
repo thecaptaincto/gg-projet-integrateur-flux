@@ -1,3 +1,8 @@
+// EcranAccueil.tsx — Page d'accueil affichée uniquement au premier lancement de l'app.
+// Présente le nom de l'application et deux actions : créer un compte ou se connecter.
+// completerPremierLancement() est appelé avant chaque navigation pour persister l'indicateur
+// dans AsyncStorage, empêchant cet écran d'apparaître lors des prochains démarrages.
+
 import React from 'react';
 import {
   Text,

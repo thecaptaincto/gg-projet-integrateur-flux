@@ -1,3 +1,8 @@
+// BoutonPersonnalise.tsx — Bouton réutilisable en deux variantes visuelles.
+//   - 'primaire'   : fond rose pâle (#FDE2FF) avec texte sombre — action principale
+//   - 'secondaire' : transparent avec bordure — action secondaire ou destructrice (ex. déconnexion)
+// La prop `style` permet de surcharger la mise en page sans modifier les couleurs internes.
+
 import React from 'react';
 import {
   TouchableOpacity,
