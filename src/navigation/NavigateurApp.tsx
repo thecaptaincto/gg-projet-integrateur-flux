@@ -29,7 +29,12 @@ import {EcranParametres} from '../ecrans/parametres/EcranParametres';
 import {EcranCodeAcces} from '../ecrans/authentification/EcranCodeAcces';
 import {EcranVerificationCourriel} from '../ecrans/authentification/EcranVerificationCourriel';
 import {theme} from '../styles/theme';
-import {Text, View, StyleSheet, TouchableOpacity, ActivityIndicator} from 'react-native';
+import {Text, View, StyleSheet, ActivityIndicator} from 'react-native';
+// Pressable de RNGH est requis ici pour coordonner correctement les taps
+// avec le PanGestureHandler du MaterialTopTabNavigator (swipeEnabled: true).
+// La version react-native standard entre en conflit avec le pager et provoque
+// un "shake" : le pager commence à swiper avant que onPress ne se déclenche.
+import {Pressable} from 'react-native-gesture-handler';
 import {
   SafeAreaView,
 } from 'react-native-safe-area-context';
@@ -130,7 +135,7 @@ const BarreOngletsBas = ({state, navigation}: any) => {
           const etiquette = etiquettes[route.name] ?? route.name;
 
           return (
-            <TouchableOpacity
+            <Pressable
               key={route.key}
               accessibilityRole="button"
               onPress={() => navigation.navigate(route.name)}
@@ -142,7 +147,7 @@ const BarreOngletsBas = ({state, navigation}: any) => {
                   route.name === 'OngletNotifications' ? nombreNonLues : 0
                 }
               />
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </View>
