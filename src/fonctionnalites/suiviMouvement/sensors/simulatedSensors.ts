@@ -1,6 +1,7 @@
 // ============================================================
-// simulatedSensors.ts — Trajectoire simulée pour tests
-// Port direct du projet de ton ami (capteurs_simules.py).
+// simulatedSensors.ts — Source de capteurs simulés pour les tests et la démo.
+// Rejoue une trajectoire GPS préenregistrée autour du Plateau-Mont-Royal (Montréal)
+// sans accès aux capteurs physiques de l'appareil.
 // ============================================================
 
 import type {DonneesAccelerometre, PositionGPS} from './types';
@@ -39,6 +40,11 @@ const TRAJECTOIRE: [
   [45.52402, -73.58016, 35.5, 0.0, 0, 0.02, 0.01, 9.8],
 ];
 
+/**
+ * Générateur de trames capteurs simulées.
+ * Parcourt TRAJECTOIRE en boucle, en émettant position GPS, accéléromètre et
+ * compteur de pas à intervalle configurable via demarrer().
+ */
 export class SourceCapteursSimules {
   private index = 0;
   private totalPas = 0;
@@ -50,7 +56,7 @@ export class SourceCapteursSimules {
     return point;
   }
 
-  /** Lit une trame simulée (position + accéléromètre + pas) */
+  /** Lit la prochaine trame simulée (position + accéléromètre + compteur de pas). */
   lireTrame(): {
     position: PositionGPS;
     accelerometre: DonneesAccelerometre;
@@ -73,7 +79,12 @@ export class SourceCapteursSimules {
     };
   }
 
-  /** Démarre la simulation en boucle avec callback */
+  /**
+   * Démarre la simulation en boucle : appelle callback à chaque intervalleMs.
+   *
+   * @param intervalleMs - Période de la boucle en millisecondes
+   * @param callback - Fonction appelée avec la trame courante à chaque tick
+   */
   demarrer(
     intervalleMs: number,
     callback: (trame: ReturnType<typeof this.lireTrame>) => void,
@@ -83,6 +94,7 @@ export class SourceCapteursSimules {
     }, intervalleMs);
   }
 
+  /** Stoppe la boucle de simulation. */
   arreter(): void {
     if (this.intervalId) {
       clearInterval(this.intervalId);
@@ -90,9 +102,9 @@ export class SourceCapteursSimules {
     }
   }
 
+  /** Remet le curseur de trajectoire et le compteur de pas à zéro. */
   reinitialiser(): void {
     this.index = 0;
     this.totalPas = 0;
   }
 }
-

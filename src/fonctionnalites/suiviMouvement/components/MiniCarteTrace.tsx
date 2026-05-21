@@ -1,5 +1,5 @@
 // MiniCarteTrace.tsx — Carte GPS inline affichant la trace du parcours en cours.
-// Utilise une grille de 3×3 tuiles OpenStreetMap (projection Web Mercator / EPSG:3857).
+// Utilise une grille de 3×3 tuiles CartoDB Voyager (projection Web Mercator / EPSG:3857).
 // Le zoom est choisi automatiquement pour que 72 % du canvas contienne tous les points.
 // Les segments sont dessinés en "pointillés" (Views positionnées absolument, espacées de 10 px)
 // car React Native ne supporte pas nativement les <canvas> ou les SVG polyline.
@@ -16,6 +16,7 @@ const TAILLE_CANVAS = TAILLE_TUILE * GRILLE_TUILES;
 const TAILLE_AFFICHAGE = 320;
 const ECHELLE_AFFICHAGE = TAILLE_AFFICHAGE / TAILLE_CANVAS;
 const MARGE_MIN_DEGRES = 0.002;
+const SOUS_DOMAINES_CARTO = ['a', 'b', 'c', 'd'] as const;
 
 type PointProjet = PointTrace & {x: number; y: number};
 
@@ -110,9 +111,9 @@ function preparerCarte(points: PointTrace[]) {
     const y = departTuileY + ligne;
     return {
       key: `${zoom}-${x}-${y}`,
-      left: colonne * TAILLE_TUILE,
-      top: ligne * TAILLE_TUILE,
-      uri: `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`,
+      left: x * TAILLE_TUILE - origineMondeX,
+      top: y * TAILLE_TUILE - origineMondeY,
+      uri: `https://${SOUS_DOMAINES_CARTO[index % SOUS_DOMAINES_CARTO.length]}.basemaps.cartocdn.com/rastertiles/voyager/${zoom}/${x}/${y}@2x.png`,
     };
   });
 
@@ -141,9 +142,8 @@ function preparerCarte(points: PointTrace[]) {
   };
 }
 
-// Simule un trait entre deux points projetés en plaçant `etapes` petits points Views.
-// React Native ne peut pas tracer de lignes SVG, donc on découpe le vecteur en N dots
-// espacés régulièrement (max 1 dot / 10 px). Les segments < 2 px sont ignorés.
+// Trace une ligne continue entre deux points projetés via un View pivoté.
+// left/top positionnent le centre géométrique du segment ; transform rotate l'oriente.
 function SegmentTrace({
   depart,
   arrivee,
@@ -151,34 +151,30 @@ function SegmentTrace({
   depart: PointProjet;
   arrivee: PointProjet;
 }) {
-  const dx = arrivee.x - depart.x;
-  const dy = arrivee.y - depart.y;
+  const dx = (arrivee.x - depart.x) * ECHELLE_AFFICHAGE;
+  const dy = (arrivee.y - depart.y) * ECHELLE_AFFICHAGE;
   const longueur = Math.sqrt(dx * dx + dy * dy);
 
-  if (longueur < 2) {
+  if (longueur < 0.5) {
     return null;
   }
 
-  const etapes = Math.max(Math.ceil(longueur / 10), 1);
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+  const milieuX = ((depart.x + arrivee.x) / 2) * ECHELLE_AFFICHAGE;
+  const milieuY = ((depart.y + arrivee.y) / 2) * ECHELLE_AFFICHAGE;
 
   return (
-    <>
-      {Array.from({length: etapes}, (_, index) => {
-        const ratio = index / etapes;
-        return (
-          <View
-            key={`${depart.timestamp}-${arrivee.timestamp}-${index}`}
-            style={[
-              styles.segmentPoint,
-              {
-                left: (depart.x + dx * ratio) * ECHELLE_AFFICHAGE - 2,
-                top: (depart.y + dy * ratio) * ECHELLE_AFFICHAGE - 2,
-              },
-            ]}
-          />
-        );
-      })}
-    </>
+    <View
+      style={[
+        styles.segment,
+        {
+          width: longueur,
+          left: milieuX - longueur / 2,
+          top: milieuY - 1.5,
+          transform: [{rotate: `${angle}deg`}],
+        },
+      ]}
+    />
   );
 }
 
@@ -225,6 +221,7 @@ export function MiniCarteTrace({points}: {points: PointTrace[]}) {
           {carte.pointsProjetes.map((point, index) => {
             const estDepart = index === 0;
             const estArrivee = index === carte.pointsProjetes.length - 1;
+            if (!estDepart && !estArrivee) { return null; }
             return (
               <View
                 key={`${point.timestamp}-${point.latitude}-${point.longitude}`}
@@ -253,7 +250,7 @@ export function MiniCarteTrace({points}: {points: PointTrace[]}) {
 
       <View style={styles.pied}>
         <Text style={styles.piedTexte}>Trace GPS en direct</Text>
-        <Text style={styles.piedTexte}>Fonds de carte OpenStreetMap</Text>
+        <Text style={styles.attribution}>© OpenStreetMap, © CARTO</Text>
       </View>
     </View>
   );
@@ -282,11 +279,9 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
   },
-  segmentPoint: {
+  segment: {
     position: 'absolute',
     height: 4,
-    width: 4,
-    borderRadius: 999,
     backgroundColor: theme.couleurs.accentRose,
     opacity: 0.92,
   },
@@ -334,6 +329,12 @@ const styles = StyleSheet.create({
     fontFamily: theme.polices.reguliere,
     fontSize: 11,
     color: theme.couleurs.texteSecondaire,
+  },
+  attribution: {
+    fontFamily: theme.polices.reguliere,
+    fontSize: 10,
+    color: theme.couleurs.texteSecondaire,
+    opacity: 0.6,
   },
   vide: {
     borderRadius: theme.rayonBordure.md,

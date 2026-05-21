@@ -1,6 +1,7 @@
 // ============================================================
-// calculations.ts — Logique de calcul (portable)
-// Portée depuis utilitaires.py via le projet Expo de ton ami.
+// calculations.ts — Fonctions de calcul pour le suivi de mouvement.
+// Formules géodésiques, filtres de signal, compteur de pas et formatage
+// d'unités (métrique / impérial).
 // ============================================================
 
 import type {DonneesAccelerometre, PointTrace, PositionGPS} from '../sensors/types';
@@ -29,6 +30,10 @@ export function calculerDistanceMetres(
   return RAYON_TERRE_METRES * c;
 }
 
+/**
+ * Surcharge de calculerDistanceMetres acceptant des PointTrace
+ * (picks latitude/longitude uniquement).
+ */
 export function calculerDistanceTrace(
   pointA: Pick<PointTrace, 'latitude' | 'longitude'>,
   pointB: Pick<PointTrace, 'latitude' | 'longitude'>,
@@ -42,9 +47,10 @@ export function calculerDistanceTrace(
 }
 
 /**
- * Calcul de vitesse de secours quand le champ speed est absent.
+ * Calcule la vitesse en m/s entre deux positions GPS consécutives (repli Haversine).
+ * Retourne null si la position précédente est absente ou si le delta temporel est nul.
  */
-export function calculerVitesseSecours(
+function calculerVitesseSecours(
   positionPrecedente: PositionGPS | null,
   positionCourante: PositionGPS,
 ): number | null {
@@ -65,7 +71,12 @@ export function calculerVitesseSecours(
 }
 
 /**
- * Extrait la vitesse en m/s, avec fallback sur le calcul Haversine.
+ * Extrait la vitesse en m/s depuis une position GPS.
+ * Priorité au champ `speed` du capteur ; repli sur le calcul Haversine si absent.
+ *
+ * @param positionCourante - Position GPS actuelle (null → retourne null)
+ * @param positionPrecedente - Position GPS précédente (nécessaire pour le repli)
+ * @param erreurs - Tableau mutable dans lequel une erreur est poussée en cas de repli
  */
 export function extraireVitesseMs(
   positionCourante: PositionGPS | null,
@@ -79,19 +90,23 @@ export function extraireVitesseMs(
     return positionCourante.speed;
   }
 
-  // Fallback: calcul Haversine entre deux positions
+  // Repli : calcul Haversine entre deux positions
   erreurs.push(
     "Champ 'speed' non disponible, calcul de secours (Haversine) utilisé",
   );
   return calculerVitesseSecours(positionPrecedente, positionCourante);
 }
 
-/** Convertit m/s en km/h */
+/** Convertit m/s en km/h. */
 export function msVersKmh(vitesseMs: number): number {
   return vitesseMs * 3.6;
 }
 
-/** Moyenne mobile sur les N dernières valeurs. */
+/**
+ * Crée un filtre moyenne mobile sur les N dernières valeurs.
+ *
+ * @param taille - Nombre de valeurs conservées dans la fenêtre glissante
+ */
 export function creerFiltreMoyenneMobile(taille: number): {
   ajouter: (valeur: number) => void;
   moyenne: () => number;
@@ -114,8 +129,8 @@ export function creerFiltreMoyenneMobile(taille: number): {
 }
 
 /**
- * Magnitude nette de l'accéléromètre (gravité soustraite).
- * expo-sensors retourne les valeurs en g-force (repos ≈ 1.0).
+ * Magnitude nette de l'accéléromètre (gravité soustraite), en m/s².
+ * expo-sensors retourne les valeurs en g-force (repos ≈ 1.0 sur l'axe Z).
  * On soustrait 1g puis on convertit en m/s².
  */
 export function calculerMagnitudeAccel(accel: DonneesAccelerometre): number {
@@ -134,6 +149,17 @@ export function vitesseVersAllure(vitesseMs: number | null): number | null {
   return 1000 / vitesseMs;
 }
 
+/**
+ * Cumule le dénivelé entre deux points d'altitude consécutifs.
+ * Filtre le bruit barométrique (variations < seuilMetres) et les sauts GPS
+ * aberrants (variations > variationMaxMetres).
+ *
+ * @param altitudePrecedente - Altitude du point précédent (null → retourne {gain:0, perte:0})
+ * @param altitudeCourante - Altitude du point courant
+ * @param seuilMetres - Variation minimale prise en compte (défaut 1.5 m)
+ * @param variationMaxMetres - Variation maximale plausible (défaut 25 m)
+ * @returns gain (dénivelé positif) et perte (dénivelé négatif), en mètres
+ */
 export function cumulerDenivele(
   altitudePrecedente: number | null,
   altitudeCourante: number | null,
@@ -156,13 +182,6 @@ export function cumulerDenivele(
   return {gain: 0, perte: Math.abs(delta)};
 }
 
-/** Formate une allure (sec/km) en "MM:SS". */
-export function formaterAllure(allureSecParKm: number | null): string {
-  if (allureSecParKm === null) return '--:--';
-  const minutes = Math.floor(allureSecParKm / 60);
-  const secondes = Math.round(allureSecParKm % 60);
-  return `${minutes}:${secondes.toString().padStart(2, '0')}`;
-}
 
 const KM_PAR_MILE = 1.609344;
 const METRES_PAR_PIED = 0.3048;

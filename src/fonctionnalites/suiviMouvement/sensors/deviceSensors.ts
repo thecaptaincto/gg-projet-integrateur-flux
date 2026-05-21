@@ -13,16 +13,22 @@ export const CAPTEURS_REELS_DISPONIBLES = true;
 export const MESSAGE_CAPTEURS_REELS_INDISPONIBLES =
   "Le suivi avec capteurs reels n'est pas encore integre dans cette version. Utilise le mode simulation pour la demo.";
 
-// Demande la permission de localisation en premier plan (foreground).
-// La permission en arrière-plan n'est pas requise pour ce cas d'usage.
+/**
+ * Demande la permission de localisation en premier plan (foreground).
+ * La permission en arrière-plan n'est pas requise pour ce cas d'usage.
+ *
+ * @returns true si la permission est accordée, false sinon
+ */
 export async function demanderPermissionGPS(): Promise<boolean> {
   const {status} = await Location.requestForegroundPermissionsAsync();
   return status === 'granted';
 }
 
-// Lecture ponctuelle de la position GPS (snapshot, non continu).
-// Retourne null si la permission est refusée ou si le GPS est indisponible.
-export async function lirePositionGPS(): Promise<PositionGPS | null> {
+/**
+ * Lecture ponctuelle de la position GPS (snapshot, non continu).
+ * Retourne null si la permission est refusée ou si le GPS est indisponible.
+ */
+async function lirePositionGPS(): Promise<PositionGPS | null> {
   try {
     const location = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.High,
@@ -40,9 +46,17 @@ export async function lirePositionGPS(): Promise<PositionGPS | null> {
   }
 }
 
-// Souscription continue au GPS via watchPositionAsync.
-// Accuracy.BestForNavigation : mode haute précision (utilise davantage de batterie).
-// distanceInterval = 0 : déclenche le callback même sans déplacement (permet de détecter l'immobilité).
+/**
+ * Souscription continue au GPS via watchPositionAsync.
+ * Utilise Accuracy.BestForNavigation (haute précision, consommation batterie accrue).
+ * distanceInterval = 0 : déclenche le callback même sans déplacement,
+ * ce qui permet de détecter l'immobilité et de mettre à jour l'accuracy.
+ *
+ * @param callback - Appelé à chaque nouvelle position GPS
+ * @param options.timeInterval - Intervalle minimum entre deux mises à jour (ms, défaut 500)
+ * @param options.distanceInterval - Distance minimale de déplacement entre deux mises à jour (m, défaut 0)
+ * @returns Objet {annuler} pour stopper le watcher
+ */
 export async function souscrirePositionGPS(
   callback: (position: PositionGPS) => void,
   options?: {timeInterval?: number; distanceInterval?: number},
@@ -67,21 +81,33 @@ export async function souscrirePositionGPS(
   return {annuler: () => sub.remove()};
 }
 
-// Vérifie si le podomètre matériel est disponible sur l'appareil.
-// Sur tablette ou certains émulateurs, isAvailableAsync() retourne false.
+/**
+ * Vérifie si le podomètre matériel est disponible sur l'appareil.
+ * Retourne false sur tablette ou certains émulateurs.
+ */
 export async function verifierDisponibilitePodometre(): Promise<boolean> {
   return Pedometer.isAvailableAsync();
 }
 
-// Demande la permission d'activité physique (Android 10+ : ACTIVITY_RECOGNITION).
-// Sur iOS, le podomètre ne nécessite pas de permission explicite.
+/**
+ * Demande la permission d'activité physique (ACTIVITY_RECOGNITION sur Android 10+).
+ * Sur iOS, le podomètre ne nécessite pas de permission explicite.
+ *
+ * @returns true si la permission est accordée, false sinon
+ */
 export async function demanderPermissionPodometre(): Promise<boolean> {
   const {status} = await Pedometer.requestPermissionsAsync();
   return status === 'granted';
 }
 
-// Souscription continue au podomètre : le callback reçoit le nombre de pas
-// depuis le démarrage de l'abonnement (delta, pas cumulatif depuis l'allumage).
+/**
+ * Souscription continue au podomètre matériel.
+ * Le callback reçoit le nombre de pas depuis le démarrage de l'abonnement
+ * (delta depuis l'inscription, non cumulatif depuis l'allumage de l'appareil).
+ *
+ * @param callback - Appelé à chaque mise à jour du compteur de pas
+ * @returns Objet {annuler} pour stopper l'abonnement
+ */
 export function souscrirePodometre(
   callback: (nombrePas: number) => void,
 ): {annuler: () => void} {
@@ -91,8 +117,14 @@ export function souscrirePodometre(
   return {annuler: () => abonnement.remove()};
 }
 
-// Souscription à l'accéléromètre à une fréquence configurable (intervalleMs).
-// Les valeurs x/y/z sont en g-force (repos ≈ 0,0,1 selon l'orientation).
+/**
+ * Souscription à l'accéléromètre à une fréquence configurable.
+ * Les valeurs x/y/z sont en g-force (repos ≈ 0, 0, 1 selon l'orientation).
+ *
+ * @param callback - Appelé à chaque lecture de l'accéléromètre
+ * @param intervalleMs - Période de mise à jour en millisecondes (défaut 1000)
+ * @returns Objet {annuler} pour stopper l'abonnement
+ */
 export function souscrireAccelerometre(
   callback: (donnees: DonneesAccelerometre) => void,
   intervalleMs: number = 1000,
