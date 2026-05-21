@@ -96,3 +96,10 @@ diff-*.txt
 diffs.zip
 flux-*.zip
 ancien-filtrage/
+
+# Temp / Metro logs / archives
+.tmp/
+metro_*.log
+metro_*.stderr.log
+metro_*.stdout.log
+*.zip
