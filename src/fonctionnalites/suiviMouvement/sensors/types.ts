@@ -1,9 +1,10 @@
 // ============================================================
-// types.ts — Interfaces centrales pour les capteurs
-// Porté depuis le projet Expo de ton ami (sans dépendance Expo).
+// types.ts — Interfaces centrales pour les capteurs et l'état de session.
+// Définit les contrats de données entre deviceSensors, simulatedSensors,
+// useSuiviMouvement et les composants d'affichage.
 // ============================================================
 
-/** Position GPS brute */
+/** Position GPS brute telle que retournée par expo-location. */
 export interface PositionGPS {
   latitude: number;
   longitude: number;
@@ -13,6 +14,7 @@ export interface PositionGPS {
   timestamp: number; // ms depuis epoch
 }
 
+/** Point minimal enregistré dans la trace du parcours. */
 export interface PointTrace {
   latitude: number;
   longitude: number;
@@ -20,22 +22,15 @@ export interface PointTrace {
   timestamp: number;
 }
 
-/** Données de l'accéléromètre */
+/** Données brutes de l'accéléromètre (axes x/y/z en g-force). */
 export interface DonneesAccelerometre {
   x: number;
   y: number;
   z: number;
 }
 
-/** État complet d'une trame de capteurs */
-export interface TrameCapteurs {
-  position: PositionGPS | null;
-  nombrePasTotal: number | null;
-  accelerometre: DonneesAccelerometre | null;
-  erreurs: string[];
-}
 
-/** Résultat calculé pour l'affichage */
+/** État complet exposé par useSuiviMouvement à chaque tick de 500 ms. */
 export interface EtatSuivi {
   // Position
   latitude: number | null;
@@ -72,7 +67,7 @@ export interface EtatSuivi {
   traceParcours: PointTrace[];
 }
 
-/** Résumé retourné quand une session est arrêtée */
+/** Résumé retourné par arreter() à la fin d'une session. */
 export interface ResumeSuivi {
   dureeSecondes: number;
   distanceMetres: number;
@@ -83,7 +78,7 @@ export interface ResumeSuivi {
   traceParcours: PointTrace[];
 }
 
-/** Configuration du suivi */
+/** Configuration des capteurs et de l'intervalle de sondage. */
 export interface ConfigSuivi {
   intervalleSondageMs: number;
   capteursActifs: {
@@ -101,4 +96,3 @@ export const CONFIG_DEFAUT: ConfigSuivi = {
     accelerometre: true,
   },
 };
-

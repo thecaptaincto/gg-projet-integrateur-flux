@@ -88,7 +88,33 @@ const LONGUEUR_PAS_METRES = 0.7;
 const DISTANCE_MIN_TRACE_METRES = 3;
 const DELAI_MAX_TRACE_MS = 5_000;
 const TAILLE_MAX_TRACE = 1000;
+// Précision GPS en dessous de laquelle on considère la position fiable pour l'accumulation Haversine.
+const SEUIL_PRECISION_GPS_FIABLE_METRES = 15;
+// Delta Haversine maximum acceptable en un seul tick de 500 ms (100 m/s serait absurde).
+const DELTA_GPS_MAX_METRES = 50;
+// Delta Haversine au-delà duquel on ne met pas à jour positionPrecedenteRef (saut GPS énorme).
+const SAUT_GPS_ENORMES_METRES = 250;
+// Zone morte de vitesse : en dessous, on préfère la vitesse dérivée du déplacement ou des pas.
+const ZONE_MORTE_VITESSE_MS = 0.2;
+// Seuil d'agitation accéléromètre (m/s²) pour compter une trame comme "en mouvement".
+const SEUIL_AGITATION_MOUVEMENT = 0.12;
+// Nombre de trames d'agitation conservées dans l'historique glissant (6 × 500 ms = 3 s).
+const TAILLE_HISTORIQUE_AGITATION = 6;
+// Durée de la fenêtre glissante pour le calcul de l'allure instantanée (style Strava).
+const FENETRE_ALLURE_MS = 60_000;
+// Seuil de magnitude accéléromètre pour le compteur de pas logiciel (marche lente sur tablette).
+const SEUIL_COMPTEUR_PAS_LOGICIEL = 0.6;
+// Intervalle minimum entre deux pas logiciels (ms) — ≈ 214 pas/min max.
+const INTERVALLE_MIN_PAS_MS = 280;
 
+/**
+ * Hook principal de suivi d'entraînement.
+ * Orchestre GPS, podomètre et accéléromètre en mode réel ou simulation.
+ *
+ * @param options.config - Configuration des capteurs et de l'intervalle de sondage
+ * @param options.simulation - Si true, rejoue une trajectoire préenregistrée sans accès aux capteurs
+ * @returns Objet exposant l'état courant, les commandes de session et le résumé post-session
+ */
 export function useSuiviMouvement(options: OptionsHook = {}) {
   const {config = CONFIG_DEFAUT, simulation = false} = options;
 
@@ -124,7 +150,7 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
   // Seuil à 0.6 m/s² : plus permissif que le défaut du module (0.8) pour capter la marche
   // lente sur tablette, mais suffisamment restrictif pour filtrer le bruit (secousse de la
   // main, tapotement sur l'écran). La marche normale génère typiquement 1-2 m/s².
-  const compteurPasLogicielRef = useRef(creerCompteurPas(0.6, 280));
+  const compteurPasLogicielRef = useRef(creerCompteurPas(SEUIL_COMPTEUR_PAS_LOGICIEL, INTERVALLE_MIN_PAS_MS));
   const pasLogicielsRef = useRef<number>(0);
   const derniersPasRef = useRef<number | null>(null);
   const bufferAllureRef = useRef<{timestamp: number; distance: number}[]>([]);
@@ -175,8 +201,11 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
     );
   }, []);
 
-  // -- traiterTrame : utilisé uniquement par le mode simulation --
-  // En mode réel, les filtres et le checkpoint sont calculés dans demarrerCapteurs.
+  // -- traiterTrame : SIMULATION UNIQUEMENT --
+  // Reçoit une trame (position, pas, accéléromètre) depuis SourceCapteursSimules et met à
+  // jour l'état de la session. Implémente une version simplifiée du pipeline : distance
+  // Haversine directe, sans filtrage agitation, sans CAS 1/2 ni allure fenêtre glissante.
+  // En mode capteurs réels, toute cette logique est gérée dans demarrerCapteurs.
   const traiterTrame = useCallback(
     (
       position: PositionGPS | null,
@@ -235,7 +264,7 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
             }
 
             const sautEnorme =
-              deltaHaversine > 250 || vitesseHaversine > VITESSE_MAX_PLAUSIBLE_MS * 3;
+              deltaHaversine > SAUT_GPS_ENORMES_METRES || vitesseHaversine > VITESSE_MAX_PLAUSIBLE_MS * 3;
             if (!sautEnorme) {
               positionPrecedenteRef.current = position;
             }
@@ -325,7 +354,13 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
     setEtat(prev => ({...prev, estActif: true, estEnPause: false, erreurs: []}));
   }, [config.intervalleSondageMs, reinitialiserRefsSession, traiterTrame]);
 
-  // -- Mode capteurs réels --
+  // -- demarrerCapteurs : CAPTEURS RÉELS UNIQUEMENT --
+  // Démarre l'intervalle UI (500 ms) immédiatement, puis souscrit aux capteurs physiques
+  // (GPS, podomètre, accéléromètre) en arrière-plan sans bloquer. Implémente le pipeline
+  // complet : filtrage agitation, CAS 1/2 distance hybride, vitesse composite,
+  // allure fenêtre glissante. Coexiste avec traiterTrame car la simulation n'a pas accès
+  // aux capteurs natifs et ne nécessite pas la gestion des permissions ni le lissage
+  // temps réel.
   const demarrerCapteurs = useCallback((reinitialiser = true) => {
     if (annulerCapteursRef.current) {
       return;
@@ -405,7 +440,7 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
 
       // Historique glissant des 6 dernières valeurs d'agitation (3 secondes)
       historiqueAgitationRef.current.push(filtreAgitation.moyenne());
-      if (historiqueAgitationRef.current.length > 6) {
+      if (historiqueAgitationRef.current.length > TAILLE_HISTORIQUE_AGITATION) {
         historiqueAgitationRef.current.shift();
       }
 
@@ -416,7 +451,7 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
       // suffisamment de vibration pour franchir ce seuil — la distance sera alors calculée
       // via GPS (CAS 1) si l'accuracy est bonne, ce qui reste correct.
       const nombreTramesEnMouvement = historiqueAgitationRef.current.filter(
-        v => v > 0.12,
+        v => v > SEUIL_AGITATION_MOUVEMENT,
       ).length;
       const enMouvementPhysique = nombreTramesEnMouvement >= 2;
       const enMouvementConfirme = enMouvementPhysique || deltaPasTick > 0;
@@ -424,7 +459,7 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
       const gpsFiable =
         dernierePosition !== null &&
         dernierePosition.accuracy !== null &&
-        dernierePosition.accuracy <= 15;
+        dernierePosition.accuracy <= SEUIL_PRECISION_GPS_FIABLE_METRES;
 
       if (gpsFiable && enMouvementConfirme) {
         // CAS 1 : GPS fiable + mouvement → accumulation point à point (Strava-style)
@@ -436,8 +471,10 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
             dernierePosition!.longitude,
           );
           // Filtre anti-saut : ignorer les deltas absurdes (> 50m en 500ms = 100 m/s)
-          if (delta > 0 && delta < 50) {
+          if (delta > 0 && delta < DELTA_GPS_MAX_METRES) {
             distanceTotaleRef.current += delta;
+            // Confirme qu'un delta GPS valide a été accumulé : utile pour détecter
+            // les sauts de distance inattendus lors des tests terrain.
             if (__DEV__) {
               console.log('[DISTANCE GPS]', {
                 delta: delta.toFixed(2),
@@ -459,6 +496,8 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
         const distancePas = nouveauxPas * LONGUEUR_PAS_METRES;
         distanceTotaleRef.current += distancePas;
         pasAuDernierCheckpointPodoRef.current = nombrePasActuel;
+        // Trace l'accumulation CAS 2 (podomètre) : nouveaux pas, distance ajoutée et source
+        // (hardware ou logiciel). Permet de détecter un double-comptage pas/GPS à la transition.
         if (__DEV__) {
           console.log('[CHECKPOINT PAS]', {
             pas: nouveauxPas,
@@ -473,6 +512,8 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
         pasAuDernierCheckpointPodoRef.current = nombrePasActuel;
       }
 
+      // Snapshot général après chaque tick : vérifie la cohérence entre gpsFiable,
+      // mouvement physique et source du podomètre actif.
       if (__DEV__) {
         console.log('[DISTANCE]', {
           total: distanceTotaleRef.current.toFixed(1),
@@ -494,7 +535,7 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
           ? (deltaPasTick * LONGUEUR_PAS_METRES) / deltaTempsTickSecondes
           : 0;
       const vitesseMesureeMs =
-        vitesseMs === null || vitesseMs < 0.2
+        vitesseMs === null || vitesseMs < ZONE_MORTE_VITESSE_MS
           ? Math.max(vitesseDistanceMs, vitessePasMs) || null
           : vitesseMs;
 
@@ -506,7 +547,7 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
         vitesseMesureeMs !== null &&
         vitesseMesureeMs <= VITESSE_MAX_PLAUSIBLE_MS
       ) {
-        filtreVitesse.ajouter(appliquerZoneMorte(vitesseMesureeMs, 0.2));
+        filtreVitesse.ajouter(appliquerZoneMorte(vitesseMesureeMs, ZONE_MORTE_VITESSE_MS));
         vitesseLissee = filtreVitesse.moyenne();
       }
 
@@ -523,6 +564,8 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
         enregistrerPointTrace(dernierePosition);
       }
 
+      // Résumé de la trame courante : état GPS, comptage de pas, source du podomètre.
+      // Pratique pour diagnostiquer la bascule hardware/logiciel sur tablette.
       if (__DEV__) {
         console.log('[TRAME]', {
           gpsFiable,
@@ -542,7 +585,7 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
         bufferAllureRef.current.push({timestamp: maintenant, distance: distanceTotaleRef.current});
       }
       bufferAllureRef.current = bufferAllureRef.current.filter(
-        e => maintenant - e.timestamp <= 60_000,
+        e => maintenant - e.timestamp <= FENETRE_ALLURE_MS,
       );
       let allureFenetre: number | null = null;
       if (bufferAllureRef.current.length >= 2) {
@@ -554,6 +597,8 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
           allureFenetre = deltaT / (deltaD / 1000);
         }
       }
+      // Diagnostic de la fenêtre glissante d'allure : taille du buffer, allure calculée
+      // et allure moyenne de secours. Aide à comprendre les affichages "--:--".
       if (__DEV__) {
         console.log('[ALLURE]', {
           fenetre: allureFenetre?.toFixed(0) ?? '--',
@@ -617,6 +662,8 @@ export function useSuiviMouvement(options: OptionsHook = {}) {
             filtreAgitation.ajouter(Math.abs(mag));
             pasLogicielsRef.current =
               compteurPasLogicielRef.current.ajouterEchantillon(mag);
+            // Vérifie que l'accéléromètre émet des données et que le compteur logiciel
+            // détecte les pas. Utile quand le podomètre hardware est silencieux.
             if (__DEV__) {
               console.log('[MAG]', Math.abs(mag).toFixed(3), '| pas:', pasLogicielsRef.current);
             }
